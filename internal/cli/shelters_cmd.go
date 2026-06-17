@@ -22,6 +22,7 @@ type shelterFeed struct {
 	Source   string
 	Shelters []Shelter
 	Enrich   enrichState
+	RedCross enrichState
 }
 
 // loadShelterFeed returns the OpenShelters feed (the spine). When fixture is set
@@ -44,6 +45,7 @@ func loadShelterFeed(cmd *cobra.Command, flags *rootFlags, fixture string) (shel
 			Source:   "fixture:" + fixture,
 			Shelters: shelters,
 			Enrich:   enrichState{Note: "Enrichment (FEMA_NSS/0) is skipped in --fixture mode; the fixture is the OpenShelters spine only."},
+			RedCross: enrichState{Note: "Red Cross union is skipped in --fixture mode; the fixture is the OpenShelters spine only."},
 		}, nil
 	}
 	c, err := flags.newClient()
@@ -75,7 +77,12 @@ func loadShelterFeed(cmd *cobra.Command, flags *rootFlags, fixture string) (shel
 		source = "local-store (synced); run 'shelters-pp-cli sync' to refresh"
 	}
 	feed := shelterFeed{Source: source, Shelters: shelters}
+	// Enrich the FEMA spine first (FEMA_NSS/0 fields by shelter_id), THEN union
+	// in Red Cross. Enriching before the union keeps enrichment on the FEMA-id'd
+	// rows only and lets Red Cross fill any fields still empty afterward (notably
+	// coordinates), without an empty enrichment value clobbering a Red Cross one.
 	feed.Enrich = applyEnrichment(ctx, flags, feed.Shelters, prov.Source)
+	feed.RedCross = applyRedCrossUnion(ctx, flags, &feed, prov.Source)
 	return feed, nil
 }
 

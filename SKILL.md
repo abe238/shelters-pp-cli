@@ -37,7 +37,7 @@ go install github.com/mvanhorn/printing-press-library/library/other/shelters/cmd
 
 If `--version` reports "command not found" after install, the runtime cannot see the binary directory on `$PATH`. Do not proceed with skill commands until verification succeeds.
 
-Gives agents and people the most comprehensive, credible open-shelter picture available from FEMA's National Shelter System (NSS): the OpenShelters feed as the authoritative spine, best-effort enriched with the richer FEMA_NSS layer so each shelter also carries its county/parish, the driving incident, the open date, generator and floodplain/surge attributes, and the population breakdown. It answers the questions people actually ask in a disaster, like 'the closest open shelter to me that allows pets' and 'which shelters are at capacity', filters by state, pets, accessibility, county, or generator, geocodes addresses when the feed omits coordinates, and never invents a number it does not have (a missed enrichment fetch degrades to explicit null with a note, never a wrong value). Deep thanks to all first responders, emergency management practitioners, and relief nonprofit organizations for the work you do in communities when disaster strikes. This is an unofficial tool; in a life-threatening emergency call 911 and follow the official guidance and evacuation orders from FEMA, your local emergency management, and your local authorities.
+Gives agents and people the most comprehensive, credible open-shelter picture available: it unions FEMA's National Shelter System (NSS) OpenShelters feed with the American Red Cross Emergency-Action feed (the redcross.org map's source) and dedupes them, because FEMA is synchronized downstream of Red Cross and lags it by up to a day, so neither feed alone is complete. FEMA rows are best-effort enriched with the richer FEMA_NSS layer (county/parish, the driving incident, the open date, generator and floodplain/surge attributes, and the population breakdown), and every shelter carries a source field ('fema', 'redcross', or 'fema+redcross'). It answers the questions people actually ask in a disaster, like 'the closest open shelter to me that allows pets' and 'which shelters are at capacity', filters by state, pets, accessibility, county, or generator, geocodes addresses (and bare ZIPs) when coordinates are missing, and never invents a number it does not have (a missed secondary fetch degrades to explicit null with a note, never a wrong value). Deep thanks to all first responders, emergency management practitioners, and relief nonprofit organizations for the work you do in communities when disaster strikes. This is an unofficial tool; in a life-threatening emergency call 911 and follow the official guidance and evacuation orders from FEMA, the American Red Cross, your local emergency management, and your local authorities.
 
 ## When Not to Use This CLI
 
@@ -75,7 +75,7 @@ These capabilities aren't available in any other tool for this API.
   ```
 
 ### Listings and detail
-- **`shelters`** — Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; each shelter best-effort enriched with FEMA's richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes).
+- **`shelters`** — Open shelters from the union of FEMA OpenShelters and the American Red Cross feed (deduped, each tagged with a source field: fema, redcross, or fema+redcross), flattened and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; FEMA rows best-effort enriched with the richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes).
 
   _Use to narrow open shelters to the ones that match a person's needs._
 
@@ -132,13 +132,21 @@ shelters-pp-cli shelters --county Cameron --generator --json
 
 Filters on the FEMA_NSS/0 enrichment fields (county/parish and confirmed onsite generator); matches nothing honestly when the enrichment is unavailable rather than guessing.
 
-### Spine only, no second fetch
+### Shelters the Red Cross feed has but FEMA does not yet
+
+```bash
+shelters-pp-cli shelters --json --select data.shelters
+```
+
+The union surfaces shelters tagged source 'redcross' (open on the redcross.org map but not yet in FEMA, which syncs downstream and lags); a consumer can filter on the source field.
+
+### FEMA spine only, no Red Cross union or enrichment
 
 ```bash
 shelters-pp-cli shelters --no-enrich --json
 ```
 
-Skips the FEMA_NSS/0 enrichment round-trip for the fastest, OpenShelters-only answer when the extended fields are not needed.
+Skips both the Red Cross union and the FEMA_NSS/0 enrichment round-trips for the fastest, FEMA-OpenShelters-only answer.
 
 ## Command Reference
 

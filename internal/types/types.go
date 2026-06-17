@@ -56,4 +56,9 @@ type Shelter struct {
 	PetAccommodationsDesc     string `json:"pet_accommodations_desc"`
 	OrgMainPhone              string `json:"org_main_phone"`
 	OrgHotlinePhone           string `json:"org_hotline_phone"`
+
+	// Provenance: which feed the record came from ("fema", "redcross", or
+	// "fema+redcross"), plus the Red Cross site id when present. See redcross.go.
+	Source     string `json:"source"`
+	RedCrossID string `json:"red_cross_id,omitempty"`
 }

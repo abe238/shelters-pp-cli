@@ -54,6 +54,7 @@ type nearData struct {
 	GeocodeTimedOut bool              `json:"geocode_timed_out"`
 	Note            string            `json:"note"`
 	Enrichment      enrichState       `json:"enrichment"`
+	RedCross        enrichState       `json:"red_cross"`
 	Shelters        []shelterDistance `json:"shelters"`
 }
 
@@ -119,6 +120,7 @@ func newNovelNearCmd(flags *rootFlags) *cobra.Command {
 
 			data := buildNear(ctx, origin, shelters, flagMaxMiles, flagLimit)
 			data.Enrichment = feed.Enrich
+			data.RedCross = feed.RedCross
 			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
 				return renderNear(data)
 			})
@@ -338,7 +340,7 @@ func renderNear(d nearData) string {
 		if s.CoordsGeocoded {
 			geo = " [geocoded]"
 		}
-		fmt.Fprintf(&b, "- %.1f mi  %s (id %d) -- %s%s\n", s.DistanceMiles, s.Name, s.ShelterID, loc, geo)
+		fmt.Fprintf(&b, "- %.1f mi  %s (id %d) -- %s%s%s\n", s.DistanceMiles, s.Name, s.ShelterID, loc, geo, sourceTag(s.Source))
 		fmt.Fprintf(&b, "      pets %s | ada %s | wheelchair %s | pop/cap %s\n",
 			petLabel(s.PetAccommodations), dashIfEmpty(s.ADACompliant), dashIfEmpty(s.WheelchairAccessible), popCapStr(s.Shelter))
 	}
@@ -350,8 +352,10 @@ func renderNear(d nearData) string {
 		}
 	}
 	fmt.Fprintf(&b, "\n%s\n", d.Note)
-	if note := d.Enrichment.humanNote(); note != "" {
-		fmt.Fprintf(&b, "%s\n", note)
+	for _, note := range []string{d.Enrichment.humanNote(), d.RedCross.humanNote()} {
+		if note != "" {
+			fmt.Fprintf(&b, "%s\n", note)
+		}
 	}
 	return b.String()
 }

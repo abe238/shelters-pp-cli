@@ -38,6 +38,16 @@ const (
 	// OpenShelters; see shelters_enrich.go.
 	femaNSSQuery    = "/arcgis/rest/services/NSS/FEMA_NSS/FeatureServer/0/query"
 	femaNSSLayerURL = "https://gis.fema.gov/arcgis/rest/services/NSS/FEMA_NSS/FeatureServer/0"
+	// Red Cross Emergency-Action view: the feed the public redcross.org
+	// "find an open shelter" map uses. A DIFFERENT org (services.arcgis.com),
+	// fields are active_*, geometry is Web Mercator unless outSR=4326 is set, and
+	// the endpoint gates on a Referer header. FEMA's feed is synchronized from the
+	// Red Cross database (every morning, then every 20 min), so a freshly opened
+	// shelter can appear in Red Cross up to a day before FEMA: unioning both is the
+	// only way to get every currently-open shelter. See redcross.go.
+	redCrossBase     = "https://services.arcgis.com"
+	redCrossQuery    = "/pGfbNJoYypmNq86F/arcgis/rest/services/Shelters_Prod_EA_view/FeatureServer/0/query"
+	redCrossLayerURL = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/Shelters_Prod_EA_view/FeatureServer/0"
 	// fullNSSInfoURL points to the broader NSS program (full access needs an MOU).
 	fullNSSInfoURL = "https://www.fema.gov/emergency-managers/practitioners/national-mass-care-strategy"
 	// censusGeocoderBase is the free, key-less US Census geocoder (street-level;
@@ -128,6 +138,14 @@ type Shelter struct {
 	PetAccommodationsDesc     string `json:"pet_accommodations_desc"`
 	OrgMainPhone              string `json:"org_main_phone"`
 	OrgHotlinePhone           string `json:"org_hotline_phone"`
+
+	// --- provenance ---
+	// Source is which feed this record came from: "fema" (OpenShelters spine),
+	// "redcross" (Red Cross EA view), or "fema+redcross" (present in both and
+	// merged). RedCrossID carries the Red Cross site id for rows that have one
+	// (RC has no FEMA shelter_id), so a consumer can cross-reference the RC map.
+	Source     string `json:"source"`
+	RedCrossID string `json:"red_cross_id,omitempty"`
 }
 
 // arcgisResponse decodes either the feature collection or an ArcGIS error. The
@@ -223,6 +241,7 @@ func parseShelters(raw []byte) ([]Shelter, error) {
 			WheelchairAccessible: normCode(attrStr(a, "wheelchair_accessible")),
 			Latitude:             attrFloatPtr(a, "latitude"),
 			Longitude:            attrFloatPtr(a, "longitude"),
+			Source:               "fema",
 		}
 		if id := attrIntPtr(a, "shelter_id"); id != nil {
 			s.ShelterID = *id
@@ -315,12 +334,22 @@ func loadFixture(path string) ([]byte, error) {
 // the raw bytes. Used by the geocoder; the OpenShelters feed goes through the
 // generated client. Timeouts ride the passed context.
 func httpGetJSON(ctx context.Context, rawURL string) ([]byte, error) {
+	return httpGet(ctx, rawURL, "")
+}
+
+// httpGet is httpGetJSON with an optional Referer header. The Red Cross EA view
+// gates on Referer, so its fetch passes "https://www.redcross.org/"; an empty
+// referer omits the header (the FEMA/Census endpoints need none).
+func httpGet(ctx context.Context, rawURL, referer string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/json,*/*")
+	if referer != "" {
+		req.Header.Set("Referer", referer)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err

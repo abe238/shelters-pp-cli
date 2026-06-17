@@ -72,6 +72,7 @@ type shelterListData struct {
 	Count      int         `json:"count"`
 	Shelters   []Shelter   `json:"shelters"`
 	Enrichment enrichState `json:"enrichment"`
+	RedCross   enrichState `json:"red_cross"`
 }
 
 // pp:data-source auto
@@ -104,9 +105,9 @@ func newSheltersPromotedCmd(flags *rootFlags) *cobra.Command {
 			if flagLimit > 0 && len(shelters) > flagLimit {
 				shelters = shelters[:flagLimit]
 			}
-			data := shelterListData{Count: len(shelters), Shelters: shelters, Enrichment: feed.Enrich}
+			data := shelterListData{Count: len(shelters), Shelters: shelters, Enrichment: feed.Enrich, RedCross: feed.RedCross}
 			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
-				return renderShelterTable(shelters, feed.Enrich)
+				return renderShelterTable(shelters, feed.Enrich, feed.RedCross)
 			})
 		},
 	}
@@ -124,14 +125,12 @@ func newSheltersPromotedCmd(flags *rootFlags) *cobra.Command {
 }
 
 // renderShelterTable renders the human listing.
-func renderShelterTable(shelters []Shelter, enrich enrichState) string {
+func renderShelterTable(shelters []Shelter, enrich, redCross enrichState) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Open shelters: %d\n", len(shelters))
 	if len(shelters) == 0 {
 		fmt.Fprintln(&b, "  (none reported right now; this is normal when no disaster is active)")
-		if note := enrich.humanNote(); note != "" {
-			fmt.Fprintf(&b, "\n%s\n", note)
-		}
+		appendFeedNotes(&b, enrich, redCross)
 		return b.String()
 	}
 	for _, s := range shelters {
@@ -142,7 +141,7 @@ func renderShelterTable(shelters []Shelter, enrich enrichState) string {
 		if s.CountyParish != "" {
 			loc = strings.TrimSpace(loc + " (" + s.CountyParish + ")")
 		}
-		fmt.Fprintf(&b, "- %s (id %d) -- %s\n", s.Name, s.ShelterID, loc)
+		fmt.Fprintf(&b, "- %s (id %d) -- %s%s\n", s.Name, s.ShelterID, loc, sourceTag(s.Source))
 		fmt.Fprintf(&b, "    status %s | pets %s | ada %s | wheelchair %s | pop/cap %s\n",
 			dashIfEmpty(s.Status), petLabel(s.PetAccommodations),
 			dashIfEmpty(s.ADACompliant), dashIfEmpty(s.WheelchairAccessible), popCapStr(s))
@@ -150,10 +149,29 @@ func renderShelterTable(shelters []Shelter, enrich enrichState) string {
 			fmt.Fprintf(&b, "    incident %s\n", s.IncidentName)
 		}
 	}
-	if note := enrich.humanNote(); note != "" {
-		fmt.Fprintf(&b, "\n%s\n", note)
-	}
+	appendFeedNotes(&b, enrich, redCross)
 	return b.String()
+}
+
+// sourceTag renders the per-shelter provenance for the human listing, e.g.
+// " [src: redcross]". "fema" is the default spine, shown without a tag to keep
+// the common case uncluttered.
+func sourceTag(src string) string {
+	if src == "" || src == "fema" {
+		return ""
+	}
+	return " [src: " + src + "]"
+}
+
+// appendFeedNotes appends the enrichment and Red Cross notes that warrant a
+// human mention (i.e. when a feed was skipped or failed); clean successes stay
+// quiet.
+func appendFeedNotes(b *strings.Builder, enrich, redCross enrichState) {
+	for _, note := range []string{enrich.humanNote(), redCross.humanNote()} {
+		if note != "" {
+			fmt.Fprintf(b, "\n%s\n", note)
+		}
+	}
 }
 
 // petLabel renders the pet code in plain words for humans.

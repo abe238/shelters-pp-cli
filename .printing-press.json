@@ -41,7 +41,7 @@
     {
       "name": "Filtered open-shelter listing",
       "command": "shelters",
-      "description": "Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; each shelter best-effort enriched with FEMA's richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes)."
+      "description": "Open shelters from the union of FEMA OpenShelters and the American Red Cross feed (deduped, each tagged with a source field: fema, redcross, or fema+redcross), flattened and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; FEMA rows best-effort enriched with the richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes)."
     },
     {
       "name": "Flattened shelter detail by stable id",

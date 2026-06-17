@@ -36,6 +36,18 @@ func (e enrichState) humanNote() string {
 	return e.Note
 }
 
+// joinNotes joins the non-empty notes with newlines (used where a single note
+// string is rendered, e.g. the shelter detail view).
+func joinNotes(notes ...string) string {
+	out := make([]string, 0, len(notes))
+	for _, n := range notes {
+		if n != "" {
+			out = append(out, n)
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
 // fetchEnrichment fetches and parses the FEMA_NSS/0 enrichment layer, returning
 // the extra fields keyed by shelter_id. It is a package var so tests can stub it
 // without touching the network.

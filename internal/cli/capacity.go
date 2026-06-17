@@ -40,6 +40,7 @@ type capacityData struct {
 	ReportedFull    int           `json:"reported_full_count"`
 	Note            string        `json:"note"`
 	Enrichment      enrichState   `json:"enrichment"`
+	RedCross        enrichState   `json:"red_cross"`
 	Shelters        []capacityRow `json:"shelters"`
 }
 
@@ -69,6 +70,7 @@ func newNovelCapacityCmd(flags *rootFlags) *cobra.Command {
 			shelters := shelterFilter{state: flagState}.apply(feed.Shelters)
 			data := buildCapacity(shelters)
 			data.Enrichment = feed.Enrich
+			data.RedCross = feed.RedCross
 			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
 				return renderCapacity(data)
 			})
@@ -165,12 +167,14 @@ func renderCapacity(d capacityData) string {
 		if r.ReportedFull {
 			flag += "  [reported FULL]"
 		}
-		fmt.Fprintf(&b, "- %s (id %d) -- %s\n", r.Name, r.ShelterID, loc)
+		fmt.Fprintf(&b, "- %s (id %d) -- %s%s\n", r.Name, r.ShelterID, loc, sourceTag(r.Source))
 		fmt.Fprintf(&b, "      pop/cap %s | utilization %s%s\n", popCapStr(r.Shelter), util, flag)
 	}
 	fmt.Fprintf(&b, "\n%s\n", d.Note)
-	if note := d.Enrichment.humanNote(); note != "" {
-		fmt.Fprintf(&b, "%s\n", note)
+	for _, note := range []string{d.Enrichment.humanNote(), d.RedCross.humanNote()} {
+		if note != "" {
+			fmt.Fprintf(&b, "%s\n", note)
+		}
 	}
 	return b.String()
 }

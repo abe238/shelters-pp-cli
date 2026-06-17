@@ -27,6 +27,7 @@ type briefData struct {
 	AtCapacityCount    int            `json:"at_capacity_count"`
 	ReportedFullCount  int            `json:"reported_full_count"`
 	Enrichment         enrichState    `json:"enrichment"`
+	RedCross           enrichState    `json:"red_cross"`
 	Summary            string         `json:"summary"`
 }
 
@@ -55,6 +56,7 @@ func newNovelBriefCmd(flags *rootFlags) *cobra.Command {
 			shelters := shelterFilter{state: flagState}.apply(feed.Shelters)
 			data := buildBrief(shelters)
 			data.Enrichment = feed.Enrich
+			data.RedCross = feed.RedCross
 			// --markdown is a human format: honor --quiet (suppress) and let
 			// --json win (machine consumers get the envelope, not markdown).
 			if flagMarkdown {
@@ -68,8 +70,10 @@ func newNovelBriefCmd(flags *rootFlags) *cobra.Command {
 			}
 			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
 				out := data.Summary + "\n"
-				if note := data.Enrichment.humanNote(); note != "" {
-					out += note + "\n"
+				for _, note := range []string{data.Enrichment.humanNote(), data.RedCross.humanNote()} {
+					if note != "" {
+						out += note + "\n"
+					}
 				}
 				return out
 			})
@@ -160,8 +164,10 @@ func renderBriefMarkdown(d briefData) string {
 	fmt.Fprintf(&b, "- Reported FULL: %d\n", d.ReportedFullCount)
 	fmt.Fprintln(&b)
 
-	if note := d.Enrichment.humanNote(); note != "" {
-		fmt.Fprintf(&b, "_%s_\n\n", note)
+	for _, note := range []string{d.Enrichment.humanNote(), d.RedCross.humanNote()} {
+		if note != "" {
+			fmt.Fprintf(&b, "_%s_\n\n", note)
+		}
 	}
 
 	fmt.Fprintln(&b, "---")

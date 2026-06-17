@@ -46,7 +46,7 @@ func newNovelShelterCmd(flags *rootFlags) *cobra.Command {
 			for i := range feed.Shelters {
 				if feed.Shelters[i].ShelterID == id {
 					s := feed.Shelters[i]
-					note := feed.Enrich.humanNote()
+					note := joinNotes(feed.Enrich.humanNote(), feed.RedCross.humanNote())
 					return emitEnvelopeHuman(cmd, flags, feed.Source, s, func() string {
 						return renderShelterDetail(s, note)
 					})

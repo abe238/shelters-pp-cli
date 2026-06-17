@@ -37,7 +37,7 @@
     {
       "name": "Filtered open-shelter listing",
       "command": "shelters",
-      "description": "Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; each shelter best-effort enriched with FEMA's richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes).",
+      "description": "Open shelters from the union of FEMA OpenShelters and the American Red Cross feed (deduped, each tagged with a source field: fema, redcross, or fema+redcross), flattened and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; FEMA rows best-effort enriched with the richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes).",
       "rationale": "The raw ArcGIS feature feed nests fields under attributes and is not directly filterable; this flattens and filters it for agents and people.",
       "example": "shelters-pp-cli shelters --state FL --ada --json",
       "why_it_matters": "Use to narrow open shelters to the ones that match a person's needs.",
@@ -84,7 +84,7 @@
     {
       "name": "Filtered open-shelter listing",
       "command": "shelters",
-      "description": "Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; each shelter best-effort enriched with FEMA's richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes).",
+      "description": "Open shelters from the union of FEMA OpenShelters and the American Red Cross feed (deduped, each tagged with a source field: fema, redcross, or fema+redcross), flattened and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; FEMA rows best-effort enriched with the richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes).",
       "rationale": "The raw ArcGIS feature feed nests fields under attributes and is not directly filterable; this flattens and filters it for agents and people.",
       "example": "shelters-pp-cli shelters --state FL --ada --json",
       "why_it_matters": "Use to narrow open shelters to the ones that match a person's needs.",
@@ -102,8 +102,8 @@
   ],
   "narrative": {
     "display_name": "FEMA National Shelter System",
-    "headline": "Credible, real-time disaster shelter information for AI agents and people: which FEMA-tracked shelters are open right now, where they are (down to county and the incident that opened them), which take pets, which have a generator, and which are at capacity. Sourced from FEMA's National Shelter System OpenShelters feed and best-effort enriched with FEMA's richer FEMA_NSS layer, honest about missing data.",
-    "value_prop": "Gives agents and people the most comprehensive, credible open-shelter picture available from FEMA's National Shelter System (NSS): the OpenShelters feed as the authoritative spine, best-effort enriched with the richer FEMA_NSS layer so each shelter also carries its county/parish, the driving incident, the open date, generator and floodplain/surge attributes, and the population breakdown. It answers the questions people actually ask in a disaster, like 'the closest open shelter to me that allows pets' and 'which shelters are at capacity', filters by state, pets, accessibility, county, or generator, geocodes addresses when the feed omits coordinates, and never invents a number it does not have (a missed enrichment fetch degrades to explicit null with a note, never a wrong value). Deep thanks to all first responders, emergency management practitioners, and relief nonprofit organizations for the work you do in communities when disaster strikes. This is an unofficial tool; in a life-threatening emergency call 911 and follow the official guidance and evacuation orders from FEMA, your local emergency management, and your local authorities.",
+    "headline": "Credible, real-time disaster shelter information for AI agents and people: which shelters are open right now, where they are (down to county and the incident that opened them), which take pets, which have a generator, and which are at capacity. Unions the FEMA National Shelter System OpenShelters feed with the American Red Cross open-shelter map feed (deduped) and best-effort enriches with FEMA's richer FEMA_NSS layer, honest about missing data.",
+    "value_prop": "Gives agents and people the most comprehensive, credible open-shelter picture available: it unions FEMA's National Shelter System (NSS) OpenShelters feed with the American Red Cross Emergency-Action feed (the redcross.org map's source) and dedupes them, because FEMA is synchronized downstream of Red Cross and lags it by up to a day, so neither feed alone is complete. FEMA rows are best-effort enriched with the richer FEMA_NSS layer (county/parish, the driving incident, the open date, generator and floodplain/surge attributes, and the population breakdown), and every shelter carries a source field ('fema', 'redcross', or 'fema+redcross'). It answers the questions people actually ask in a disaster, like 'the closest open shelter to me that allows pets' and 'which shelters are at capacity', filters by state, pets, accessibility, county, or generator, geocodes addresses (and bare ZIPs) when coordinates are missing, and never invents a number it does not have (a missed secondary fetch degrades to explicit null with a note, never a wrong value). Deep thanks to all first responders, emergency management practitioners, and relief nonprofit organizations for the work you do in communities when disaster strikes. This is an unofficial tool; in a life-threatening emergency call 911 and follow the official guidance and evacuation orders from FEMA, the American Red Cross, your local emergency management, and your local authorities.",
     "quickstart": [
       {
         "command": "shelters-pp-cli doctor",
@@ -134,13 +134,17 @@
       {
         "symptom": "capacity shows unknown for a shelter",
         "fix": "The feed did not report both a population and a capacity for it; this tool will not invent a denominator."
+      },
+      {
+        "symptom": "a shelter you expect is missing, or the red_cross note says the feed was unavailable",
+        "fix": "Results union FEMA OpenShelters with the American Red Cross feed; if the Red Cross fetch fails the command degrades to FEMA-only with a note in the red_cross field. FEMA syncs downstream of Red Cross and can lag by up to a day, so a brand-new shelter may appear only under source 'redcross'. Retry, or check 'gis-links' for the source layers."
       }
     ],
     "when_to_use": "Use shelters-pp-cli when an AI agent or operator needs trustworthy, current information about open disaster shelters: where they are, which take pets, which are accessible, and which are at or near capacity. It is ideal for situational-awareness assistants, disaster-response tooling, and anyone helping a person find a safe place to shelter during an emergency.",
     "anti_triggers": [
       "Do not use this CLI as a substitute for 911 or official evacuation orders; defer to FEMA, local emergency management, and local authorities.",
       "Do not treat a shelter's status as real-time; the feed updates roughly twice a day and may lag reality.",
-      "Do not expect full National Shelter System data; only the public OpenShelters feed is covered (full NSS requires an MOU with FEMA)."
+      "Do not expect every shelter database; this unions the public FEMA OpenShelters and American Red Cross open-shelter feeds (full NSS beyond public OpenShelters still requires an MOU with FEMA)."
     ],
     "recipes": [
       {
@@ -169,9 +173,14 @@
         "explanation": "Filters on the FEMA_NSS/0 enrichment fields (county/parish and confirmed onsite generator); matches nothing honestly when the enrichment is unavailable rather than guessing."
       },
       {
-        "title": "Spine only, no second fetch",
+        "title": "Shelters the Red Cross feed has but FEMA does not yet",
+        "command": "shelters-pp-cli shelters --json --select data.shelters",
+        "explanation": "The union surfaces shelters tagged source 'redcross' (open on the redcross.org map but not yet in FEMA, which syncs downstream and lags); a consumer can filter on the source field."
+      },
+      {
+        "title": "FEMA spine only, no Red Cross union or enrichment",
         "command": "shelters-pp-cli shelters --no-enrich --json",
-        "explanation": "Skips the FEMA_NSS/0 enrichment round-trip for the fastest, OpenShelters-only answer when the extended fields are not needed."
+        "explanation": "Skips both the Red Cross union and the FEMA_NSS/0 enrichment round-trips for the fastest, FEMA-OpenShelters-only answer."
       }
     ],
     "trigger_phrases": [
@@ -183,6 +192,8 @@
       "shelters in my county",
       "shelters with a generator",
       "what incident opened these shelters",
+      "red cross open shelters",
+      "shelters near me that fema is missing",
       "use shelters",
       "run shelters"
     ]
