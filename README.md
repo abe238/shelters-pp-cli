@@ -1,4 +1,4 @@
-# Disaster Shelter CLI (FEMA National Shelter System)
+# Disaster Shelter CLI (National Shelter System)
 
 **Credible, real-time disaster shelter information for AI agents and people: which shelters are open right now, where they are (down to county and the incident that opened them), which take pets, which have a generator, and which are at capacity. Unions the FEMA National Shelter System OpenShelters feed with the American Red Cross open-shelter map feed (deduped) and best-effort enriches with FEMA's richer FEMA_NSS layer, honest about missing data.**
 
