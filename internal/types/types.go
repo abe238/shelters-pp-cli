@@ -3,27 +3,31 @@
 
 package types
 
+// Nullable numeric and geo fields are pointers so an absent value in the
+// ArcGIS feed is nil ("unknown"), never a real 0. This mirrors cli.Shelter in
+// internal/cli/shelters_parse.go, so capacity/near logic can never misread a
+// missing capacity, population, or coordinate as a known zero.
 type Shelter struct {
-	ShelterId             int     `json:"shelter_id"`
-	Objectid              int     `json:"objectid"`
-	ShelterName           string  `json:"shelter_name"`
-	Address               string  `json:"address"`
-	City                  string  `json:"city"`
-	State                 string  `json:"state"`
-	Zip                   string  `json:"zip"`
-	ShelterStatus         string  `json:"shelter_status"`
-	EvacuationCapacity    int     `json:"evacuation_capacity"`
-	PostImpactCapacity    int     `json:"post_impact_capacity"`
-	TotalPopulation       int     `json:"total_population"`
-	HoursOpen             string  `json:"hours_open"`
-	HoursClose            string  `json:"hours_close"`
-	OrgName               string  `json:"org_name"`
-	OrgId                 int     `json:"org_id"`
-	MatchType             string  `json:"match_type"`
-	SubfacilityCode       string  `json:"subfacility_code"`
-	AdaCompliant          string  `json:"ada_compliant"`
-	PetAccommodationsCode string  `json:"pet_accommodations_code"`
-	WheelchairAccessible  string  `json:"wheelchair_accessible"`
-	Latitude              float64 `json:"latitude"`
-	Longitude             float64 `json:"longitude"`
+	ShelterId             int      `json:"shelter_id"`
+	Objectid              *int     `json:"objectid"`
+	ShelterName           string   `json:"shelter_name"`
+	Address               string   `json:"address"`
+	City                  string   `json:"city"`
+	State                 string   `json:"state"`
+	Zip                   string   `json:"zip"`
+	ShelterStatus         string   `json:"shelter_status"`
+	EvacuationCapacity    *int     `json:"evacuation_capacity"`
+	PostImpactCapacity    *int     `json:"post_impact_capacity"`
+	TotalPopulation       *int     `json:"total_population"`
+	HoursOpen             string   `json:"hours_open"`
+	HoursClose            string   `json:"hours_close"`
+	OrgName               string   `json:"org_name"`
+	OrgId                 *int     `json:"org_id"`
+	MatchType             string   `json:"match_type"`
+	SubfacilityCode       string   `json:"subfacility_code"`
+	AdaCompliant          string   `json:"ada_compliant"`
+	PetAccommodationsCode string   `json:"pet_accommodations_code"`
+	WheelchairAccessible  string   `json:"wheelchair_accessible"`
+	Latitude              *float64 `json:"latitude"`
+	Longitude             *float64 `json:"longitude"`
 }

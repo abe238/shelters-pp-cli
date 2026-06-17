@@ -11,6 +11,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -328,6 +329,8 @@ func renderNear(d nearData) string {
 	return b.String()
 }
 
+// round1 rounds to one decimal place using the standard library, which is
+// overflow-safe (unlike int64 truncation) for any finite input.
 func round1(f float64) float64 {
-	return float64(int64(f*10+0.5)) / 10
+	return math.Round(f*10) / 10
 }
