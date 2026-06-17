@@ -194,10 +194,10 @@ func decodeFeatures(raw []byte) ([]map[string]any, error) {
 		recognized = true
 	}
 	if resp.Error != nil {
-		return nil, fmt.Errorf("FEMA OpenShelters service error %d: %s", resp.Error.Code, resp.Error.Message)
+		return nil, fmt.Errorf("ArcGIS service error %d: %s", resp.Error.Code, resp.Error.Message)
 	}
 	if !recognized {
-		return nil, fmt.Errorf("unrecognized OpenShelters response: valid JSON but no 'features' array and no 'error' (the feed shape may have changed)")
+		return nil, fmt.Errorf("unrecognized ArcGIS response: valid JSON but no 'features' array and no 'error' (the feed shape may have changed)")
 	}
 	attrs := make([]map[string]any, 0, len(resp.Features))
 	for _, f := range resp.Features {
@@ -419,22 +419,22 @@ func censusGeocode(ctx context.Context, oneLine string) (latlon, bool, error) {
 // ok is false (with nil error) when the ZIP has no matching ZCTA.
 var zipToLatLon = censusZCTALookup
 
-// censusZCTALookup resolves a bare ZIP via the Census TIGERweb ZCTA layer. zip5
+// censusZCTALookup resolves a bare ZIP via the Census TIGERweb ZCTA layer. zipCode
 // must be exactly five digits; the caller (resolveOrigin) guarantees this via a
 // regex, and this function re-validates before interpolating it into the ArcGIS
 // where clause so a non-numeric value can never reach the query.
-func censusZCTALookup(ctx context.Context, zip5 string) (latlon, bool, error) {
-	zip5 = strings.TrimSpace(zip5)
-	if len(zip5) != 5 {
+func censusZCTALookup(ctx context.Context, zipCode string) (latlon, bool, error) {
+	zipCode = strings.TrimSpace(zipCode)
+	if len(zipCode) != 5 {
 		return latlon{}, false, nil
 	}
-	for _, r := range zip5 {
+	for _, r := range zipCode {
 		if r < '0' || r > '9' {
 			return latlon{}, false, nil
 		}
 	}
 	v := url.Values{}
-	v.Set("where", "ZCTA5='"+zip5+"'")
+	v.Set("where", "ZCTA5='"+zipCode+"'")
 	v.Set("outFields", "INTPTLAT,INTPTLON")
 	v.Set("returnGeometry", "false")
 	v.Set("f", "json")
@@ -465,7 +465,7 @@ func censusZCTALookup(ctx context.Context, zip5 string) (latlon, bool, error) {
 	lat, err1 := strconv.ParseFloat(strings.TrimSpace(parsed.Features[0].Attributes.Lat), 64)
 	lon, err2 := strconv.ParseFloat(strings.TrimSpace(parsed.Features[0].Attributes.Lon), 64)
 	if err1 != nil || err2 != nil {
-		return latlon{}, false, fmt.Errorf("parsing ZCTA coordinates for %s", zip5)
+		return latlon{}, false, fmt.Errorf("parsing ZCTA coordinates for %s", zipCode)
 	}
 	return latlon{Lat: lat, Lon: lon}, true, nil
 }
