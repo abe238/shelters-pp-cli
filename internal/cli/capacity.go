@@ -42,6 +42,7 @@ type capacityData struct {
 	Shelters        []capacityRow `json:"shelters"`
 }
 
+// pp:data-source auto
 func newNovelCapacityCmd(flags *rootFlags) *cobra.Command {
 	var flagState string
 	var flagFixture string

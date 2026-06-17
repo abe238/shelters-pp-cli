@@ -4,17 +4,16 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/abe238/shelters-pp-cli/internal/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"io"
 	"os"
 	"path/filepath"
-	"github.com/abe238/shelters-pp-cli/internal/client"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,13 +25,6 @@ import (
 var As = errors.As
 
 const paginatedGetMaxPages = 100
-
-func formatCLIParamValue(v any) string {
-	if f, ok := v.(float64); ok {
-		return strconv.FormatFloat(f, 'f', -1, 64)
-	}
-	return fmt.Sprintf("%v", v)
-}
 
 // noColor is set by the --no-color flag
 var noColor bool
@@ -1607,110 +1599,6 @@ type DataProvenance struct {
 	Reason       string     `json:"reason,omitempty"`        // why local was used: "user_requested", "api_unreachable", "no_search_endpoint"
 	ResourceType string     `json:"resource_type,omitempty"` // which resource type was queried
 	Freshness    any        `json:"freshness,omitempty"`     // optional machine-owned freshness metadata for covered command paths
-}
-
-// printProvenance writes a one-line provenance message to stderr for TTY users.
-// Suppressed when stdout is piped or redirected — the JSON response envelope
-// already carries meta.source, so the stderr line is redundant and becomes
-// noise in agent flows that merge stderr into stdout.
-func printProvenance(cmd *cobra.Command, count int, prov DataProvenance) {
-	if !isTerminal(cmd.OutOrStdout()) {
-		return
-	}
-	if prov.Source == "live" {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%d results (live)\n", count)
-		return
-	}
-	age := "unknown"
-	if prov.SyncedAt != nil {
-		d := time.Since(*prov.SyncedAt)
-		switch {
-		case d < time.Minute:
-			age = "just now"
-		case d < time.Hour:
-			age = fmt.Sprintf("%d minutes ago", int(d.Minutes()))
-		case d < 24*time.Hour:
-			age = fmt.Sprintf("%d hours ago", int(d.Hours()))
-		default:
-			age = fmt.Sprintf("%d days ago", int(d.Hours()/24))
-		}
-	}
-	prefix := ""
-	if prov.Reason == "api_unreachable" {
-		prefix = "API unreachable. "
-	}
-	fmt.Fprintf(cmd.ErrOrStderr(), "%s%d results (cached, synced %s)\n", prefix, count, age)
-}
-
-// unwrapSingleKeyArray flattens single-key collection envelopes
-// ({"results":[...]}, {"data":[...]}, etc.) so the agent envelope
-// emits a stable .results[] across APIs. Multi-key objects pass
-// through so cursor/pagination fields stay accessible; non-array
-// values pass through so non-collection responses aren't reshaped.
-//
-// The wrapper-key set is intentionally narrower than
-// extractPaginatedItems (which also walks domain-specific keys like
-// "messages", "members", "values" used by social/messaging APIs).
-// This helper only flattens canonical collection envelopes for
-// --json output; the pagination walker has a broader remit.
-func unwrapSingleKeyArray(data json.RawMessage) json.RawMessage {
-	leading := bytes.TrimLeft(data, " \t\r\n")
-	if len(leading) == 0 || leading[0] != '{' {
-		return data
-	}
-	var obj map[string]json.RawMessage
-	if err := json.Unmarshal(data, &obj); err != nil {
-		return data
-	}
-	if len(obj) != 1 {
-		return data
-	}
-	for key, val := range obj {
-		if key != "results" && key != "data" && key != "items" && key != "nodes" && key != "entries" && key != "records" {
-			return data
-		}
-		trimmed := bytes.TrimLeft(val, " \t\r\n")
-		if len(trimmed) == 0 || trimmed[0] != '[' {
-			return data
-		}
-		return val
-	}
-	return data
-}
-
-// wrapWithProvenance wraps response data in a provenance envelope:
-// {"results": ..., "meta": {...}}. When data is valid JSON, it embeds as
-// the parsed shape; when data is non-JSON (e.g., XML/RSS responses, plain
-// text), it embeds as a JSON string so json.Marshal doesn't choke on
-// "invalid character '<'" while still passing the raw payload through to
-// the consumer. Single-key array envelopes from the API (e.g.
-// {"results": [...]}, {"data": [...]}) are unwrapped first so the output
-// shape is the same regardless of the API's wrapper key.
-func wrapWithProvenance(data json.RawMessage, prov DataProvenance) (json.RawMessage, error) {
-	meta := map[string]any{"source": prov.Source}
-	if prov.SyncedAt != nil {
-		meta["synced_at"] = prov.SyncedAt.UTC().Format(time.RFC3339)
-	}
-	if prov.Reason != "" {
-		meta["reason"] = prov.Reason
-	}
-	if prov.ResourceType != "" {
-		meta["resource_type"] = prov.ResourceType
-	}
-	if prov.Freshness != nil {
-		meta["freshness"] = prov.Freshness
-	}
-	var results any
-	if json.Valid(data) {
-		results = json.RawMessage(unwrapSingleKeyArray(data))
-	} else {
-		results = string(data)
-	}
-	envelope := map[string]any{
-		"results": results,
-		"meta":    meta,
-	}
-	return json.Marshal(envelope)
 }
 
 // defaultDBPath returns the canonical path for the local SQLite database.

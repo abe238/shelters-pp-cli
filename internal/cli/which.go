@@ -32,8 +32,6 @@ var whichIndex = []whichEntry{
 	{Command: "brief", Description: "One command returns the open count, a breakdown by state, pet-friendly and accessible counts, and the capacity picture, with an optional human briefing.", Group: "One-call situational awareness", WhyItMatters: "Reach for this first when an agent asks 'what is the shelter situation right now'."},
 	{Command: "shelters", Description: "Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, and status.", Group: "Listings and detail", WhyItMatters: "Use to narrow open shelters to the ones that match a person's needs."},
 	{Command: "shelter", Description: "Full detail for one shelter joined on the stable shelter_id rather than the churning objectid, with unreported fields as explicit null.", Group: "Listings and detail", WhyItMatters: "Use when you have a shelter_id and need its full record."},
-	{Command: "gis-links", Description: "The stable FEMA OpenShelters layer URL this CLI reads and the broader National Shelter System program path; link-out only, never ingested.", Group: "Link-outs done right", WhyItMatters: "Use when a caller wants the official FEMA service URLs."},
-	{Command: "credits", Description: "Thanks first responders, emergency management practitioners, and relief nonprofits, and states plainly that this is an unofficial tool and FEMA / local emergency management is authoritative.", Group: "Gratitude and safety", WhyItMatters: "Surface this so users know the source of truth and who to thank."},
 }
 
 // whichMatch pairs an index entry with its ranking score for a query.

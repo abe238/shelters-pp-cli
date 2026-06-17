@@ -28,6 +28,7 @@ type briefData struct {
 	Summary            string         `json:"summary"`
 }
 
+// pp:data-source auto
 func newNovelBriefCmd(flags *rootFlags) *cobra.Command {
 	var flagState string
 	var flagMarkdown bool

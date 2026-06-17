@@ -146,8 +146,6 @@ Highlights (not in the official API docs):
   • brief   One command returns the open count, a breakdown by state, pet-friendly and accessible counts, and the capacity picture, with an optional human briefing.
   • shelters   Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, and status.
   • shelter   Full detail for one shelter joined on the stable shelter_id rather than the churning objectid, with unreported fields as explicit null.
-  • gis-links   The stable FEMA OpenShelters layer URL this CLI reads and the broader National Shelter System program path; link-out only, never ingested.
-  • credits   Thanks first responders, emergency management practitioners, and relief nonprofits, and states plainly that this is an unofficial tool and FEMA / local emergency management is authoritative.
 
 Add --agent to any command for JSON output + non-interactive mode.
 Run 'shelters-pp-cli doctor' to verify auth and connectivity.`,

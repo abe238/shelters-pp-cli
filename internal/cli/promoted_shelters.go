@@ -62,6 +62,7 @@ type shelterListData struct {
 	Shelters []Shelter `json:"shelters"`
 }
 
+// pp:data-source auto
 func newSheltersPromotedCmd(flags *rootFlags) *cobra.Command {
 	var sf shelterFilter
 	var flagLimit int

@@ -64,6 +64,7 @@ type unlocatedInfo struct {
 	Address   string `json:"address"`
 }
 
+// pp:data-source auto
 func newNovelNearCmd(flags *rootFlags) *cobra.Command {
 	var sf shelterFilter
 	var flagLimit int

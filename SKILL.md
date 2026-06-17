@@ -37,7 +37,7 @@ go install github.com/mvanhorn/printing-press-library/library/other/shelters/cmd
 
 If `--version` reports "command not found" after install, the runtime cannot see the binary directory on `$PATH`. Do not proceed with skill commands until verification succeeds.
 
-shelters-pp-cli gives agents and people the most credible open-shelter picture straight from FEMA's National Shelter System (NSS) OpenShelters feed: open shelters across all states and territories, who takes pets, who is wheelchair / ADA accessible, and who is filling up. It answers the questions people actually ask in a disaster, like 'the closest open shelter to me that allows pets' and 'which shelters are at capacity', geocoding addresses when the feed omits coordinates and never inventing a number it does not have. Deep thanks to all first responders, emergency management practitioners, and relief nonprofit organizations for the work you do in communities when disaster strikes. This is an unofficial tool; in a life-threatening emergency call 911 and follow the official guidance and evacuation orders from FEMA, your local emergency management, and your local authorities.
+Gives agents and people the most credible open-shelter picture straight from FEMA's National Shelter System (NSS) OpenShelters feed: open shelters across all states and territories, who takes pets, who is wheelchair / ADA accessible, and who is filling up. It answers the questions people actually ask in a disaster, like 'the closest open shelter to me that allows pets' and 'which shelters are at capacity', geocoding addresses when the feed omits coordinates and never inventing a number it does not have. Deep thanks to all first responders, emergency management practitioners, and relief nonprofit organizations for the work you do in communities when disaster strikes. This is an unofficial tool; in a life-threatening emergency call 911 and follow the official guidance and evacuation orders from FEMA, your local emergency management, and your local authorities.
 
 ## When Not to Use This CLI
 
@@ -88,24 +88,6 @@ These capabilities aren't available in any other tool for this API.
 
   ```bash
   shelters-pp-cli shelter 368133
-  ```
-
-### Link-outs done right
-- **`gis-links`** — The stable FEMA OpenShelters layer URL this CLI reads and the broader National Shelter System program path; link-out only, never ingested.
-
-  _Use when a caller wants the official FEMA service URLs._
-
-  ```bash
-  shelters-pp-cli gis-links
-  ```
-
-### Gratitude and safety
-- **`credits`** — Thanks first responders, emergency management practitioners, and relief nonprofits, and states plainly that this is an unofficial tool and FEMA / local emergency management is authoritative.
-
-  _Surface this so users know the source of truth and who to thank._
-
-  ```bash
-  shelters-pp-cli credits
   ```
 
 ## Recipes

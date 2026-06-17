@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// pp:data-source auto
 func newNovelShelterCmd(flags *rootFlags) *cobra.Command {
 	var flagFixture string
 

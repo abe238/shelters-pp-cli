@@ -47,16 +47,6 @@
       "name": "Flattened shelter detail by stable id",
       "command": "shelter",
       "description": "Full detail for one shelter joined on the stable shelter_id rather than the churning objectid, with unreported fields as explicit null."
-    },
-    {
-      "name": "Authoritative link-outs",
-      "command": "gis-links",
-      "description": "The stable FEMA OpenShelters layer URL this CLI reads and the broader National Shelter System program path; link-out only, never ingested."
-    },
-    {
-      "name": "Gratitude and safety disclaimer",
-      "command": "credits",
-      "description": "Thanks first responders, emergency management practitioners, and relief nonprofits, and states plainly that this is an unofficial tool and FEMA / local emergency management is authoritative."
     }
   ]
 }

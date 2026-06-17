@@ -2,7 +2,7 @@
   "dir": "\u003ccli-dir\u003e/shelters-pp-cli",
   "spec_path": "\u003ccli-dir\u003e/spec.yaml",
   "spec_source": "bundled",
-  "verdict": "FAIL",
+  "verdict": "PASS",
   "path_check": {
     "tested": 0,
     "valid": 0,
@@ -32,14 +32,8 @@
     "dead": 0
   },
   "dead_functions": {
-    "total": 65,
-    "dead": 4,
-    "items": [
-      "formatCLIParamValue",
-      "printProvenance",
-      "unwrapSingleKeyArray",
-      "wrapWithProvenance"
-    ]
+    "total": 61,
+    "dead": 0
   },
   "pipeline_check": {
     "sync_calls_domain": true,
@@ -71,8 +65,8 @@
     }
   },
   "novel_features_check": {
-    "planned": 7,
-    "found": 7
+    "planned": 5,
+    "found": 5
   },
   "mcp_surface_parity": {
     "state": "runtime_walking",
@@ -80,57 +74,8 @@
     "detail": "MCP surface mirrors the Cobra tree at runtime"
   },
   "reimplementation_check": {
-    "checked": 7,
-    "exempted_via_store": 5,
-    "suspicious": [
-      {
-        "command": "gis-links",
-        "file": "gislinks.go",
-        "reason": "hand-rolled response: no API client call, no store access"
-      },
-      {
-        "command": "credits",
-        "file": "credits.go",
-        "reason": "hand-rolled response: no API client call, no store access"
-      }
-    ],
-    "missing_data_source_strategy": [
-      {
-        "command": "near",
-        "file": "near.go",
-        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
-      },
-      {
-        "command": "capacity",
-        "file": "capacity.go",
-        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
-      },
-      {
-        "command": "brief",
-        "file": "brief.go",
-        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
-      },
-      {
-        "command": "shelters",
-        "file": "promoted_shelters.go",
-        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
-      },
-      {
-        "command": "shelter",
-        "file": "shelter.go",
-        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
-      },
-      {
-        "command": "gis-links",
-        "file": "gislinks.go",
-        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
-      },
-      {
-        "command": "credits",
-        "file": "credits.go",
-        "reason": "missing // pp:data-source \u003cauto|local|live\u003e annotation"
-      }
-    ]
+    "checked": 5,
+    "exempted_via_store": 5
   },
   "source_client_check": {
     "checked": 0,
@@ -149,9 +94,5 @@
     "checked": 0,
     "skipped": true
   },
-  "issues": [
-    "4 dead helper functions found",
-    "2/7 novel features look reimplemented: gis-links (gislinks.go) — hand-rolled response: no API client call, no store access; credits (credits.go) — hand-rolled response: no API client call, no store access",
-    "7/7 novel features missing data-source strategy: near (near.go) — missing // pp:data-source \u003cauto|local|live\u003e annotation; capacity (capacity.go) — missing // pp:data-source \u003cauto|local|live\u003e annotation; brief (brief.go) — missing // pp:data-source \u003cauto|local|live\u003e annotation; shelters (promoted_shelters.go) — missing // pp:data-source \u003cauto|local|live\u003e annotation; shelter (shelter.go) — missing // pp:data-source \u003cauto|local|live\u003e annotation; gis-links (gislinks.go) — missing // pp:data-source \u003cauto|local|live\u003e annotation; credits (credits.go) — missing // pp:data-source \u003cauto|local|live\u003e annotation"
-  ]
+  "issues": null
 }
