@@ -15,25 +15,40 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// loadShelterFeed returns (source, shelters) for the OpenShelters feed. When
-// fixture is set it reads the local file (or stdin via "-"); otherwise it
+// shelterFeed bundles a loaded feed: its source label, the flattened shelters
+// (already merged with FEMA_NSS/0 enrichment when applicable), and the
+// enrichment status so a consumer can tell genuine nulls from a missed fetch.
+type shelterFeed struct {
+	Source   string
+	Shelters []Shelter
+	Enrich   enrichState
+}
+
+// loadShelterFeed returns the OpenShelters feed (the spine). When fixture is set
+// it reads the local file (or stdin via "-") and skips enrichment; otherwise it
 // fetches live through the generated client with the bound timeout context and
-// the standard query params (all open shelters, no geometry, JSON).
-func loadShelterFeed(cmd *cobra.Command, flags *rootFlags, fixture string) (string, []Shelter, error) {
+// the standard query params (all open shelters, no geometry, JSON), then
+// best-effort merges the FEMA_NSS/0 enrichment fields (unless --no-enrich /
+// --data-source local).
+func loadShelterFeed(cmd *cobra.Command, flags *rootFlags, fixture string) (shelterFeed, error) {
 	if fixture != "" {
 		b, err := loadFixture(fixture)
 		if err != nil {
-			return "", nil, usageErr(err)
+			return shelterFeed{}, usageErr(err)
 		}
 		shelters, perr := parseShelters(b)
 		if perr != nil {
-			return "", nil, usageErr(perr)
+			return shelterFeed{}, usageErr(perr)
 		}
-		return "fixture:" + fixture, shelters, nil
+		return shelterFeed{
+			Source:   "fixture:" + fixture,
+			Shelters: shelters,
+			Enrich:   enrichState{Note: "Enrichment (FEMA_NSS/0) is skipped in --fixture mode; the fixture is the OpenShelters spine only."},
+		}, nil
 	}
 	c, err := flags.newClient()
 	if err != nil {
-		return "", nil, err
+		return shelterFeed{}, err
 	}
 	ctx, cancel := boundCtx(cmd.Context(), flags)
 	defer cancel()
@@ -49,17 +64,19 @@ func loadShelterFeed(cmd *cobra.Command, flags *rootFlags, fixture string) (stri
 	// (local); parseShelters accepts both shapes.
 	data, prov, err := resolveReadWithStrategy(ctx, c, flags, "auto", "shelters", true, openSheltersQuery, params, nil, cmd.ErrOrStderr())
 	if err != nil {
-		return "", nil, classifyAPIError(err, flags)
+		return shelterFeed{}, classifyAPIError(err, flags)
 	}
 	shelters, perr := parseShelters(data)
 	if perr != nil {
-		return "", nil, apiErr(perr)
+		return shelterFeed{}, apiErr(perr)
 	}
 	source := c.RequestBaseURL() + openSheltersQuery
 	if prov.Source == "local" {
 		source = "local-store (synced); run 'shelters-pp-cli sync' to refresh"
 	}
-	return source, shelters, nil
+	feed := shelterFeed{Source: source, Shelters: shelters}
+	feed.Enrich = applyEnrichment(ctx, flags, feed.Shelters, prov.Source)
+	return feed, nil
 }
 
 // emitEnvelopeHuman writes the {source, fetched_at, data} envelope, with an

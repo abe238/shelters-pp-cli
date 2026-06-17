@@ -37,7 +37,7 @@ go install github.com/mvanhorn/printing-press-library/library/other/shelters/cmd
 
 If `--version` reports "command not found" after install, the runtime cannot see the binary directory on `$PATH`. Do not proceed with skill commands until verification succeeds.
 
-Gives agents and people the most credible open-shelter picture straight from FEMA's National Shelter System (NSS) OpenShelters feed: open shelters across all states and territories, who takes pets, who is wheelchair / ADA accessible, and who is filling up. It answers the questions people actually ask in a disaster, like 'the closest open shelter to me that allows pets' and 'which shelters are at capacity', geocoding addresses when the feed omits coordinates and never inventing a number it does not have. Deep thanks to all first responders, emergency management practitioners, and relief nonprofit organizations for the work you do in communities when disaster strikes. This is an unofficial tool; in a life-threatening emergency call 911 and follow the official guidance and evacuation orders from FEMA, your local emergency management, and your local authorities.
+Gives agents and people the most comprehensive, credible open-shelter picture available from FEMA's National Shelter System (NSS): the OpenShelters feed as the authoritative spine, best-effort enriched with the richer FEMA_NSS layer so each shelter also carries its county/parish, the driving incident, the open date, generator and floodplain/surge attributes, and the population breakdown. It answers the questions people actually ask in a disaster, like 'the closest open shelter to me that allows pets' and 'which shelters are at capacity', filters by state, pets, accessibility, county, or generator, geocodes addresses when the feed omits coordinates, and never invents a number it does not have (a missed enrichment fetch degrades to explicit null with a note, never a wrong value). Deep thanks to all first responders, emergency management practitioners, and relief nonprofit organizations for the work you do in communities when disaster strikes. This is an unofficial tool; in a life-threatening emergency call 911 and follow the official guidance and evacuation orders from FEMA, your local emergency management, and your local authorities.
 
 ## When Not to Use This CLI
 
@@ -48,7 +48,7 @@ Do not activate this CLI for requests that require creating, updating, deleting,
 These capabilities aren't available in any other tool for this API.
 
 ### Closest shelter
-- **`near`** — Ranks open shelters by straight-line distance from a lat,lon, ZIP, or street address; geocodes shelters that are missing coordinates and reports any it cannot locate rather than dropping them.
+- **`near`** — Ranks open shelters by straight-line distance from a lat,lon, ZIP, or street address; geocodes shelters that are missing coordinates and reports any it cannot locate rather than dropping them; filterable by pets, ADA, wheelchair, county/parish, and confirmed onsite generator.
 
   _Answers 'the closest shelter to me that allows pets' in one call; add --pets, --ada, or --wheelchair._
 
@@ -66,7 +66,7 @@ These capabilities aren't available in any other tool for this API.
   ```
 
 ### One-call situational awareness
-- **`brief`** — One command returns the open count, a breakdown by state, pet-friendly and accessible counts, and the capacity picture, with an optional human briefing.
+- **`brief`** — One command returns the open count, breakdowns by state and by the driving incident, pet-friendly and accessible counts, and the capacity picture, with an optional human briefing.
 
   _Reach for this first when an agent asks 'what is the shelter situation right now'._
 
@@ -75,14 +75,14 @@ These capabilities aren't available in any other tool for this API.
   ```
 
 ### Listings and detail
-- **`shelters`** — Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, and status.
+- **`shelters`** — Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; each shelter best-effort enriched with FEMA's richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes).
 
   _Use to narrow open shelters to the ones that match a person's needs._
 
   ```bash
   shelters-pp-cli shelters --state FL --ada --json
   ```
-- **`shelter`** — Full detail for one shelter joined on the stable shelter_id rather than the churning objectid, with unreported fields as explicit null.
+- **`shelter`** — Full detail for one shelter joined on the stable shelter_id rather than the churning objectid, with unreported fields as explicit null; enriched with FEMA_NSS/0 fields (county, the driving incident, open date, generator, floodplain/surge, and the population breakdown) when reported.
 
   _Use when you have a shelter_id and need its full record._
 
@@ -122,7 +122,23 @@ Reports utilization where computable and flags reported-full shelters, honestly 
 shelters-pp-cli brief --markdown
 ```
 
-Bundles open count, by-state, accessibility, and capacity into a single human-readable briefing.
+Bundles open count, by-state, by-incident, accessibility, and capacity into a single human-readable briefing.
+
+### Open shelters in one county that have a generator
+
+```bash
+shelters-pp-cli shelters --county Cameron --generator --json
+```
+
+Filters on the FEMA_NSS/0 enrichment fields (county/parish and confirmed onsite generator); matches nothing honestly when the enrichment is unavailable rather than guessing.
+
+### Spine only, no second fetch
+
+```bash
+shelters-pp-cli shelters --no-enrich --json
+```
+
+Skips the FEMA_NSS/0 enrichment round-trip for the fastest, OpenShelters-only answer when the extended fields are not needed.
 
 ## Command Reference
 

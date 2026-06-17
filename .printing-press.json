@@ -26,7 +26,7 @@
     {
       "name": "Closest open shelter, including pet-friendly",
       "command": "near",
-      "description": "Ranks open shelters by straight-line distance from a lat,lon, ZIP, or street address; geocodes shelters that are missing coordinates and reports any it cannot locate rather than dropping them."
+      "description": "Ranks open shelters by straight-line distance from a lat,lon, ZIP, or street address; geocodes shelters that are missing coordinates and reports any it cannot locate rather than dropping them; filterable by pets, ADA, wheelchair, county/parish, and confirmed onsite generator."
     },
     {
       "name": "Honest capacity, never a fabricated denominator",
@@ -36,17 +36,17 @@
     {
       "name": "One-call situational briefing",
       "command": "brief",
-      "description": "One command returns the open count, a breakdown by state, pet-friendly and accessible counts, and the capacity picture, with an optional human briefing."
+      "description": "One command returns the open count, breakdowns by state and by the driving incident, pet-friendly and accessible counts, and the capacity picture, with an optional human briefing."
     },
     {
       "name": "Filtered open-shelter listing",
       "command": "shelters",
-      "description": "Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, and status."
+      "description": "Open shelters flattened from the feed and filterable by state, pets, ADA, wheelchair, managing org, status, county/parish, and confirmed onsite generator; each shelter best-effort enriched with FEMA's richer FEMA_NSS/0 layer (county, the driving incident, generator and floodplain/surge attributes)."
     },
     {
       "name": "Flattened shelter detail by stable id",
       "command": "shelter",
-      "description": "Full detail for one shelter joined on the stable shelter_id rather than the churning objectid, with unreported fields as explicit null."
+      "description": "Full detail for one shelter joined on the stable shelter_id rather than the churning objectid, with unreported fields as explicit null; enriched with FEMA_NSS/0 fields (county, the driving incident, open date, generator, floodplain/surge, and the population breakdown) when reported."
     }
   ]
 }

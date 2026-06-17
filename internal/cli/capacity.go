@@ -39,6 +39,7 @@ type capacityData struct {
 	AtCapacityCount int           `json:"at_capacity_count"`
 	ReportedFull    int           `json:"reported_full_count"`
 	Note            string        `json:"note"`
+	Enrichment      enrichState   `json:"enrichment"`
 	Shelters        []capacityRow `json:"shelters"`
 }
 
@@ -61,13 +62,14 @@ func newNovelCapacityCmd(flags *rootFlags) *cobra.Command {
 			if dryRunOK(flags) {
 				return nil
 			}
-			source, shelters, err := loadShelterFeed(cmd, flags, flagFixture)
+			feed, err := loadShelterFeed(cmd, flags, flagFixture)
 			if err != nil {
 				return err
 			}
-			shelters = shelterFilter{state: flagState}.apply(shelters)
+			shelters := shelterFilter{state: flagState}.apply(feed.Shelters)
 			data := buildCapacity(shelters)
-			return emitEnvelopeHuman(cmd, flags, source, data, func() string {
+			data.Enrichment = feed.Enrich
+			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
 				return renderCapacity(data)
 			})
 		},
@@ -167,5 +169,8 @@ func renderCapacity(d capacityData) string {
 		fmt.Fprintf(&b, "      pop/cap %s | utilization %s%s\n", popCapStr(r.Shelter), util, flag)
 	}
 	fmt.Fprintf(&b, "\n%s\n", d.Note)
+	if note := d.Enrichment.humanNote(); note != "" {
+		fmt.Fprintf(&b, "%s\n", note)
+	}
 	return b.String()
 }

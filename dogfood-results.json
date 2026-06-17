@@ -28,7 +28,7 @@
     "detail": "no OAuth-scoped endpoints in spec"
   },
   "dead_flags": {
-    "total": 19,
+    "total": 20,
     "dead": 0
   },
   "dead_functions": {
@@ -82,13 +82,13 @@
     "skipped": true
   },
   "print_json_filtered_check": {
-    "checked": 24
+    "checked": 25
   },
   "test_presence": {
     "checked": 0
   },
   "naming_check": {
-    "checked": 24
+    "checked": 25
   },
   "sync_param_drop_check": {
     "checked": 0,

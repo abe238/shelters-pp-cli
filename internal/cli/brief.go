@@ -19,12 +19,14 @@ import (
 type briefData struct {
 	OpenCount          int            `json:"open_count"`
 	ByState            map[string]int `json:"by_state"`
+	ByIncident         map[string]int `json:"by_incident"`
 	PetFriendlyCount   int            `json:"pet_friendly_count"`
 	ADACount           int            `json:"ada_count"`
 	WheelchairCount    int            `json:"wheelchair_count"`
 	CapacityComputable int            `json:"capacity_computable_count"`
 	AtCapacityCount    int            `json:"at_capacity_count"`
 	ReportedFullCount  int            `json:"reported_full_count"`
+	Enrichment         enrichState    `json:"enrichment"`
 	Summary            string         `json:"summary"`
 }
 
@@ -46,12 +48,13 @@ func newNovelBriefCmd(flags *rootFlags) *cobra.Command {
 			if dryRunOK(flags) {
 				return nil
 			}
-			source, shelters, err := loadShelterFeed(cmd, flags, flagFixture)
+			feed, err := loadShelterFeed(cmd, flags, flagFixture)
 			if err != nil {
 				return err
 			}
-			shelters = shelterFilter{state: flagState}.apply(shelters)
+			shelters := shelterFilter{state: flagState}.apply(feed.Shelters)
 			data := buildBrief(shelters)
+			data.Enrichment = feed.Enrich
 			// --markdown is a human format: honor --quiet (suppress) and let
 			// --json win (machine consumers get the envelope, not markdown).
 			if flagMarkdown {
@@ -63,8 +66,12 @@ func newNovelBriefCmd(flags *rootFlags) *cobra.Command {
 					return nil
 				}
 			}
-			return emitEnvelopeHuman(cmd, flags, source, data, func() string {
-				return data.Summary + "\n"
+			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
+				out := data.Summary + "\n"
+				if note := data.Enrichment.humanNote(); note != "" {
+					out += note + "\n"
+				}
+				return out
 			})
 		},
 	}
@@ -76,11 +83,14 @@ func newNovelBriefCmd(flags *rootFlags) *cobra.Command {
 
 // buildBrief aggregates the feed into the briefing payload.
 func buildBrief(shelters []Shelter) briefData {
-	d := briefData{ByState: map[string]int{}}
+	d := briefData{ByState: map[string]int{}, ByIncident: map[string]int{}}
 	d.OpenCount = len(shelters)
 	for _, s := range shelters {
 		if s.State != "" {
 			d.ByState[s.State]++
+		}
+		if s.IncidentName != "" {
+			d.ByIncident[s.IncidentName]++
 		}
 		if allowsPets(s.PetAccommodations) {
 			d.PetFriendlyCount++
@@ -125,6 +135,19 @@ func renderBriefMarkdown(d briefData) string {
 	}
 	fmt.Fprintln(&b)
 
+	if len(d.ByIncident) > 0 {
+		fmt.Fprintln(&b, "## Incidents")
+		incidents := make([]string, 0, len(d.ByIncident))
+		for name := range d.ByIncident {
+			incidents = append(incidents, name)
+		}
+		sort.Strings(incidents)
+		for _, name := range incidents {
+			fmt.Fprintf(&b, "- %s: %d\n", name, d.ByIncident[name])
+		}
+		fmt.Fprintln(&b)
+	}
+
 	fmt.Fprintln(&b, "## Access")
 	fmt.Fprintf(&b, "- Pet-friendly: %d\n", d.PetFriendlyCount)
 	fmt.Fprintf(&b, "- ADA compliant: %d\n", d.ADACount)
@@ -136,6 +159,10 @@ func renderBriefMarkdown(d briefData) string {
 	fmt.Fprintf(&b, "- At/over capacity: %d\n", d.AtCapacityCount)
 	fmt.Fprintf(&b, "- Reported FULL: %d\n", d.ReportedFullCount)
 	fmt.Fprintln(&b)
+
+	if note := d.Enrichment.humanNote(); note != "" {
+		fmt.Fprintf(&b, "_%s_\n\n", note)
+	}
 
 	fmt.Fprintln(&b, "---")
 	fmt.Fprintln(&b, sheltersGratitude)

@@ -27,9 +27,10 @@ func newNovelGisLinksCmd(flags *rootFlags) *cobra.Command {
 			links := map[string]any{
 				"openshelters_feature_layer": featureServerURL,
 				"openshelters_query":         openSheltersBase + openSheltersQuery,
+				"fema_nss_enrichment_layer":  femaNSSLayerURL,
 				"national_shelter_system":    fullNSSInfoURL,
 				"census_geocoder":            censusGeocoderBase,
-				"note":                       "This CLI reads the OpenShelters attributes feed; the GIS layers are referenced, not ingested. Full NSS (beyond public OpenShelters) requires an MOU with FEMA.",
+				"note":                       "This CLI reads the OpenShelters attributes feed (spine) and best-effort enriches it from the richer FEMA_NSS/0 layer (county, incident, generator, populations). The GIS layers are referenced, not ingested. Full NSS (beyond public OpenShelters) requires an MOU with FEMA.",
 			}
 			// Prose only for an interactive terminal; piped / --json / --agent /
 			// --quiet consumers get the machine path (pipe-default contract).
@@ -40,6 +41,7 @@ func newNovelGisLinksCmd(flags *rootFlags) *cobra.Command {
 			fmt.Fprintln(&b, "FEMA National Shelter System -- link-outs (not ingested):")
 			fmt.Fprintf(&b, "  OpenShelters layer : %s\n", featureServerURL)
 			fmt.Fprintf(&b, "  OpenShelters query : %s\n", openSheltersBase+openSheltersQuery)
+			fmt.Fprintf(&b, "  FEMA_NSS enrich    : %s\n", femaNSSLayerURL)
 			fmt.Fprintf(&b, "  NSS program        : %s\n", fullNSSInfoURL)
 			fmt.Fprintf(&b, "  Census geocoder    : %s\n", censusGeocoderBase)
 			fmt.Fprintln(&b)
