@@ -84,11 +84,13 @@ func newSheltersPromotedCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "shelters",
 		Aliases: []string{"list"},
-		Short:   "List open shelters from FEMA's National Shelter System (OpenShelters feed)",
-		Long: "List open shelters from FEMA's National Shelter System OpenShelters feed, flattened " +
+		Short:   "List open shelters from the union of FEMA OpenShelters and the American Red Cross feed (US only)",
+		Long: "List open shelters from the union of FEMA's National Shelter System OpenShelters feed and the " +
+			"American Red Cross feed (deduped, each tagged with a source field: fema, redcross, or fema+redcross), flattened " +
 			"and filterable by state, pet policy, ADA / wheelchair accessibility, managing org, and " +
 			"status. Returns few or none when no disaster is active (quiet baseline); counts spike " +
-			"during named events. Data is reported roughly twice a day and may lag reality.",
+			"during named events. Coverage is the United States and its territories only, not other countries. " +
+			"Data is reported roughly twice a day and may lag reality.",
 		Example: "  shelters-pp-cli shelters --state TX\n" +
 			"  shelters-pp-cli shelters --pets --json\n" +
 			"  shelters-pp-cli list --ada --wheelchair",

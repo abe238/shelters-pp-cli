@@ -56,7 +56,7 @@ func newNovelCapacityCmd(flags *rootFlags) *cobra.Command {
 			"population and a capacity are reported; the denominator is evacuation_capacity by default " +
 			"and falls back to post_impact_capacity with a label. Shelters with missing numbers are " +
 			"counted as unknown, never assumed full or empty. A shelter the feed marks FULL is surfaced " +
-			"as reported-full.\n\nUse case: \"which shelter is at capacity?\"",
+			"as reported-full.\n\nUse case: \"which shelter is at capacity?\" Covers open shelters in the US and its territories only, from the union of the FEMA and American Red Cross feeds.",
 		Example:     "  shelters-pp-cli capacity\n  shelters-pp-cli capacity --state TX --json",
 		Annotations: map[string]string{"mcp:read-only": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

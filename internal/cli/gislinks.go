@@ -16,7 +16,7 @@ import (
 func newNovelGisLinksCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:         "gis-links",
-		Short:       "Authoritative FEMA service URLs and the full-NSS access path (link-out only)",
+		Short:       "Authoritative FEMA and American Red Cross service URLs and the full-NSS access path (link-out only)",
 		Long:        "Print the stable layer URLs this CLI reads: the FEMA OpenShelters spine, the American Red Cross Emergency-Action view it unions in, and the FEMA_NSS/0 enrichment layer, plus the broader National Shelter System program page (full access requires an MOU) and the free geocoder used by 'near'. Link-out only; never ingested.",
 		Example:     "  shelters-pp-cli gis-links",
 		Annotations: map[string]string{"mcp:read-only": "true"},

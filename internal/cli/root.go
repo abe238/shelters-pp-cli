@@ -138,7 +138,7 @@ func isCobraUsageError(err error) bool {
 func newRootCmd(flags *rootFlags) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "shelters-pp-cli",
-		Short: "Manage shelters resources via the shelters API",
+		Short: "Open US (and territories) disaster shelters from the union of FEMA and the American Red Cross",
 		Long: `Manage shelters resources via the shelters API.
 
 Highlights (not in the official API docs):
@@ -147,6 +147,8 @@ Highlights (not in the official API docs):
   • brief   One command returns the open count, breakdowns by state and by the driving incident, pet-friendly and accessible counts, and the capacity picture, with an optional human briefing.
   • shelters   Open shelters from the union of FEMA OpenShelters and the American Red Cross feed (deduped, each tagged with a source field: fema, redcross, or fema+redcross), flattened and filterable by state, pets…
   • shelter   Full detail for one shelter joined on the stable shelter_id rather than the churning objectid, with unreported fields as explicit null; enriched with FEMA_NSS/0 fields (county, the driving incident, …
+
+Coverage is the United States and its territories only, not other countries.
 
 Add --agent to any command for JSON output + non-interactive mode.
 Run 'shelters-pp-cli doctor' to verify auth and connectivity.`,

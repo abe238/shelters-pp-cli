@@ -42,7 +42,7 @@ func newNovelBriefCmd(flags *rootFlags) *cobra.Command {
 		Short: "One-call shelter situational briefing (open count, pets, accessibility, capacity)",
 		Long: "One command summarizing the shelter picture: how many are open, where, how many take pets, " +
 			"how many are confirmed accessible, and the capacity situation. --markdown renders a human " +
-			"briefing with a gratitude + safety footer. Useful even on a quiet day (the counts are simply low).",
+			"briefing with a gratitude + safety footer. Useful even on a quiet day (the counts are simply low). Covers open shelters in the US and its territories only, from the union of the FEMA and American Red Cross feeds.",
 		Example:     "  shelters-pp-cli brief\n  shelters-pp-cli brief --state TX --markdown",
 		Annotations: map[string]string{"mcp:read-only": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {

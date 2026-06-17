@@ -86,7 +86,7 @@ func newNovelNearCmd(flags *rootFlags) *cobra.Command {
 			"full street address. Shelters missing coordinates (common in the feed) are geocoded from " +
 			"their street address via the free US Census geocoder; any that cannot be located are " +
 			"counted, never dropped. Distances are straight-line miles, not driving distance.\n\n" +
-			"Use case: \"the closest shelter to me that allows pets\" -> add --pets.",
+			"Use case: \"the closest shelter to me that allows pets\" -> add --pets. Covers open shelters in the US and its territories only, from the union of the FEMA and American Red Cross feeds.",
 		Example: "  shelters-pp-cli near 78566 --pets\n" +
 			"  shelters-pp-cli near \"2400 W Bradley Ave, Champaign, IL\" --limit 3\n" +
 			"  shelters-pp-cli near 29.76,-95.37 --ada --max-miles 50",

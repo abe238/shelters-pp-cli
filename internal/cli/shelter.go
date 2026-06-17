@@ -21,7 +21,7 @@ func newNovelShelterCmd(flags *rootFlags) *cobra.Command {
 		Use:   "shelter <shelter_id>",
 		Short: "Full detail for one shelter, joined on the stable shelter_id",
 		Long: "Full detail for a single shelter. Joins on the STABLE shelter_id (never objectid, which " +
-			"changes between snapshots). Unreported fields come back as explicit null.",
+			"changes between snapshots). Unreported fields come back as explicit null. Covers open shelters in the US and its territories only, from the union of the FEMA and American Red Cross feeds.",
 		Example:     "  shelters-pp-cli shelter 368133",
 		Annotations: map[string]string{"mcp:read-only": "true"},
 		Args:        cobra.MaximumNArgs(1),
