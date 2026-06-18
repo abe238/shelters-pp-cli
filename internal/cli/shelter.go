@@ -43,20 +43,34 @@ func newNovelShelterCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			for i := range feed.Shelters {
-				if feed.Shelters[i].ShelterID == id {
-					s := feed.Shelters[i]
-					note := joinNotes(feed.Enrich.humanNote(), feed.RedCross.humanNote())
-					return emitEnvelopeHuman(cmd, flags, feed.Source, s, func() string {
-						return renderShelterDetail(s, note)
-					})
-				}
+			s, ok := findShelter(feed.Shelters, id)
+			if !ok {
+				return notFoundErr(fmt.Errorf("shelter not found: %d (a shelter_id is a positive FEMA id; Red Cross-only shelters are listed without one, see 'shelters-pp-cli shelters')", id))
 			}
-			return notFoundErr(fmt.Errorf("shelter not found: %d (run 'shelters-pp-cli shelters' to list open shelters)", id))
+			note := joinNotes(feed.Enrich.humanNote(), feed.RedCross.humanNote())
+			return emitEnvelopeHuman(cmd, flags, feed.Source, s, func() string {
+				return renderShelterDetail(s, note)
+			})
 		},
 	}
 	cmd.Flags().StringVar(&flagFixture, "fixture", "", "Parse a saved feed JSON (path or - for stdin) instead of fetching live")
 	return cmd
+}
+
+// findShelter returns the open shelter with the given stable FEMA shelter_id.
+// A non-positive id never matches: Red Cross-only rows in the union carry
+// shelter_id 0 (the RC feed has no FEMA id), so `shelter 0` must report
+// not-found rather than returning the first such row.
+func findShelter(shelters []Shelter, id int) (Shelter, bool) {
+	if id <= 0 {
+		return Shelter{}, false
+	}
+	for i := range shelters {
+		if shelters[i].ShelterID == id {
+			return shelters[i], true
+		}
+	}
+	return Shelter{}, false
 }
 
 // renderShelterDetail renders the human single-shelter view. enrichNote is the
