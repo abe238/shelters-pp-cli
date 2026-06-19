@@ -48,6 +48,15 @@ const (
 	redCrossBase     = "https://services.arcgis.com"
 	redCrossQuery    = "/pGfbNJoYypmNq86F/arcgis/rest/services/Shelters_Prod_EA_view/FeatureServer/0/query"
 	redCrossLayerURL = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/Shelters_Prod_EA_view/FeatureServer/0"
+	// ARC Open_Shelters operational layer: same ARC org (services.arcgis.com) as
+	// the Red Cross EA view above, but this is the ONLY feed that carries live
+	// occupancy -- total_population, the general/medical/other/pet breakdown -- plus
+	// the driving incident. Its SHELTER_ID is an ARC-internal id (NOT FEMA's stable
+	// shelter_id), so it is joined onto the union by physical identity
+	// (name+state+ZIP), not by id. No Referer is needed (unlike the EA view) and the
+	// attribute keys are UPPERCASE. See occupancy.go.
+	openSheltersOccQuery    = "/pGfbNJoYypmNq86F/arcgis/rest/services/Open_Shelters/FeatureServer/0/query"
+	openSheltersOccLayerURL = "https://services.arcgis.com/pGfbNJoYypmNq86F/arcgis/rest/services/Open_Shelters/FeatureServer/0"
 	// fullNSSInfoURL points to the broader NSS program (full access needs an MOU).
 	fullNSSInfoURL = "https://www.fema.gov/emergency-managers/practitioners/national-mass-care-strategy"
 	// censusGeocoderBase is the free, key-less US Census geocoder (street-level;

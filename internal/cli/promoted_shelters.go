@@ -73,6 +73,7 @@ type shelterListData struct {
 	Shelters   []Shelter   `json:"shelters"`
 	Enrichment enrichState `json:"enrichment"`
 	RedCross   enrichState `json:"red_cross"`
+	Occupancy  enrichState `json:"occupancy"`
 }
 
 // pp:data-source auto
@@ -107,9 +108,9 @@ func newSheltersPromotedCmd(flags *rootFlags) *cobra.Command {
 			if flagLimit > 0 && len(shelters) > flagLimit {
 				shelters = shelters[:flagLimit]
 			}
-			data := shelterListData{Count: len(shelters), Shelters: shelters, Enrichment: feed.Enrich, RedCross: feed.RedCross}
+			data := shelterListData{Count: len(shelters), Shelters: shelters, Enrichment: feed.Enrich, RedCross: feed.RedCross, Occupancy: feed.Occupancy}
 			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
-				return renderShelterTable(shelters, feed.Enrich, feed.RedCross)
+				return renderShelterTable(shelters, feed.Enrich, feed.RedCross, feed.Occupancy)
 			})
 		},
 	}
@@ -127,12 +128,12 @@ func newSheltersPromotedCmd(flags *rootFlags) *cobra.Command {
 }
 
 // renderShelterTable renders the human listing.
-func renderShelterTable(shelters []Shelter, enrich, redCross enrichState) string {
+func renderShelterTable(shelters []Shelter, enrich, redCross, occupancy enrichState) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Open shelters: %d\n", len(shelters))
 	if len(shelters) == 0 {
 		fmt.Fprintln(&b, "  (none reported right now; this is normal when no disaster is active)")
-		appendFeedNotes(&b, enrich, redCross)
+		appendFeedNotes(&b, enrich, redCross, occupancy)
 		return b.String()
 	}
 	for _, s := range shelters {
@@ -151,7 +152,7 @@ func renderShelterTable(shelters []Shelter, enrich, redCross enrichState) string
 			fmt.Fprintf(&b, "    incident %s\n", s.IncidentName)
 		}
 	}
-	appendFeedNotes(&b, enrich, redCross)
+	appendFeedNotes(&b, enrich, redCross, occupancy)
 	return b.String()
 }
 
@@ -165,12 +166,11 @@ func sourceTag(src string) string {
 	return " [src: " + src + "]"
 }
 
-// appendFeedNotes appends the enrichment and Red Cross notes that warrant a
-// human mention (i.e. when a feed was skipped or failed); clean successes stay
-// quiet.
-func appendFeedNotes(b *strings.Builder, enrich, redCross enrichState) {
-	for _, note := range []string{enrich.humanNote(), redCross.humanNote()} {
-		if note != "" {
+// appendFeedNotes appends the side-feed notes that warrant a human mention (i.e.
+// when a feed was skipped or failed); clean successes stay quiet.
+func appendFeedNotes(b *strings.Builder, states ...enrichState) {
+	for _, st := range states {
+		if note := st.humanNote(); note != "" {
 			fmt.Fprintf(b, "\n%s\n", note)
 		}
 	}

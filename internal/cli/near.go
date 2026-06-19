@@ -55,6 +55,7 @@ type nearData struct {
 	Note            string            `json:"note"`
 	Enrichment      enrichState       `json:"enrichment"`
 	RedCross        enrichState       `json:"red_cross"`
+	Occupancy       enrichState       `json:"occupancy"`
 	Shelters        []shelterDistance `json:"shelters"`
 }
 
@@ -121,6 +122,7 @@ func newNovelNearCmd(flags *rootFlags) *cobra.Command {
 			data := buildNear(ctx, origin, shelters, flagMaxMiles, flagLimit)
 			data.Enrichment = feed.Enrich
 			data.RedCross = feed.RedCross
+			data.Occupancy = feed.Occupancy
 			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
 				return renderNear(data)
 			})
@@ -352,7 +354,7 @@ func renderNear(d nearData) string {
 		}
 	}
 	fmt.Fprintf(&b, "\n%s\n", d.Note)
-	for _, note := range []string{d.Enrichment.humanNote(), d.RedCross.humanNote()} {
+	for _, note := range []string{d.Enrichment.humanNote(), d.RedCross.humanNote(), d.Occupancy.humanNote()} {
 		if note != "" {
 			fmt.Fprintf(&b, "%s\n", note)
 		}
