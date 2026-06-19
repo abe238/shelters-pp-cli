@@ -174,7 +174,7 @@ Run 'shelters-pp-cli doctor' to verify auth and connectivity.`,
 	rootCmd.PersistentFlags().BoolVar(&humanFriendly, "human-friendly", false, "Enable colored output and rich formatting")
 	rootCmd.PersistentFlags().BoolVar(&flags.agent, "agent", false, "Set all agent-friendly defaults (--json --compact --no-input --no-color --yes)")
 	rootCmd.PersistentFlags().StringVar(&flags.dataSource, "data-source", "auto", "Data source for read commands: auto (live with local fallback), live (API only), local (synced data only)")
-	rootCmd.PersistentFlags().BoolVar(&flags.noEnrich, "no-enrich", false, "Skip the secondary FEMA_NSS/0 enrichment, Red Cross union, and live-occupancy fetches; return only the FEMA OpenShelters spine (faster, three fewer requests; population and capacity will be null)")
+	rootCmd.PersistentFlags().BoolVar(&flags.noEnrich, "no-enrich", false, "Skip the secondary FEMA_NSS/0 enrichment, Red Cross union, live-occupancy, and Red Cross hidden-shelter filtering fetches; return only the FEMA OpenShelters spine (faster, four fewer requests; population and capacity will be null and shelters the Red Cross keeps off its public map are not filtered out)")
 	rootCmd.PersistentFlags().DurationVar(&flags.maxAge, "max-age", 30*time.Minute, "Maximum acceptable age of local-store data before a stderr hint suggests sync; 0 disables")
 	rootCmd.PersistentFlags().StringVar(&flags.profileName, "profile", "", "Apply values from a saved profile (see 'shelters-pp-cli profile list')")
 	rootCmd.PersistentFlags().StringVar(&flags.deliverSpec, "deliver", "", "Route output to a sink: stdout (default), file:<path>, webhook:<url>")

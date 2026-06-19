@@ -105,9 +105,11 @@ func TestParseOccupancyFailsLoud(t *testing.T) {
 	}
 }
 
-// TestUnionOccupancyFillsAndAppends: a matched base row gets live population and
-// "+occupancy" provenance; an unmatched occupancy row is appended as "occupancy".
-func TestUnionOccupancyFillsAndAppends(t *testing.T) {
+// TestOverlayOccupancyFillsPublicOnly locks the privacy contract: a public shelter
+// gets its live population and "+occupancy" provenance, but an Open_Shelters row
+// with no match in either public feed is WITHHELD, never added, because the CLI
+// shows only publicly listed shelters.
+func TestOverlayOccupancyFillsPublicOnly(t *testing.T) {
 	pop, evac := 42, 300
 	base := []Shelter{
 		{ShelterID: 1, Name: "Lincoln Community Center", State: "IN", Zip: "46322", Source: "fema"}, // null population
@@ -115,15 +117,21 @@ func TestUnionOccupancyFillsAndAppends(t *testing.T) {
 	}
 	occ := []Shelter{
 		{Name: "Lincoln Community Center", State: "IN", Zip: "46322", Source: "occupancy", TotalPopulation: &pop, EvacuationCapacity: &evac}, // matches base #1
-		{Name: "Open Only Shelter", State: "LA", Zip: "70501", Source: "occupancy", TotalPopulation: &pop},                                   // occupancy-only
+		{Name: "Operational Only Shelter", State: "LA", Zip: "70501", Source: "occupancy", TotalPopulation: &pop},                            // non-public: must be withheld
 	}
-	out := unionOccupancy(base, occ)
-	if len(out) != 3 {
-		t.Fatalf("union size = %d, want 3 (1 filled + 1 untouched + 1 appended)", len(out))
+	out, filled, withheld := overlayOccupancy(base, occ)
+	if len(out) != 2 {
+		t.Fatalf("overlay size = %d, want 2 (fill-only never adds the non-public row)", len(out))
+	}
+	if filled != 1 || withheld != 1 {
+		t.Errorf("filled=%d withheld=%d, want filled=1 withheld=1", filled, withheld)
 	}
 	byName := map[string]Shelter{}
 	for _, s := range out {
 		byName[s.Name] = s
+	}
+	if _, present := byName["Operational Only Shelter"]; present {
+		t.Error("a shelter present only in the operational roster must NOT be surfaced")
 	}
 	lincoln := byName["Lincoln Community Center"]
 	if lincoln.TotalPopulation == nil || *lincoln.TotalPopulation != 42 {
@@ -138,24 +146,23 @@ func TestUnionOccupancyFillsAndAppends(t *testing.T) {
 	if lincoln.ShelterID != 1 {
 		t.Errorf("Lincoln lost FEMA shelter_id: %d", lincoln.ShelterID)
 	}
-	only := byName["Open Only Shelter"]
-	if only.Source != "occupancy" || only.TotalPopulation == nil {
-		t.Errorf("occupancy-only row mistagged or missing population: %+v", only)
-	}
 }
 
-// TestUnionOccupancyNoSilentDropOnDoubleMatch: two occupancy rows keying the same
-// base row must not both collapse into it; the second is appended, never dropped.
-func TestUnionOccupancyNoSilentDropOnDoubleMatch(t *testing.T) {
+// TestOverlayOccupancyDoubleMatch: two occupancy rows keying the same base row do
+// not produce a second row (fill-only); the first fills it, the second is withheld.
+func TestOverlayOccupancyDoubleMatch(t *testing.T) {
 	p1, p2 := 10, 20
 	base := []Shelter{{ShelterID: 1, Name: "Shared Name", State: "TX", Source: "fema"}}
 	occ := []Shelter{
 		{Name: "Shared Name", State: "TX", Source: "occupancy", TotalPopulation: &p1},
 		{Name: "Shared Name", State: "TX", Source: "occupancy", TotalPopulation: &p2},
 	}
-	out := unionOccupancy(base, occ)
-	if len(out) != 2 {
-		t.Fatalf("double-match = %d rows, want 2 (one filled, one appended)", len(out))
+	out, filled, withheld := overlayOccupancy(base, occ)
+	if len(out) != 1 {
+		t.Fatalf("double-match = %d rows, want 1 (fill-only adds nothing)", len(out))
+	}
+	if filled != 1 || withheld != 1 {
+		t.Errorf("filled=%d withheld=%d, want filled=1 withheld=1", filled, withheld)
 	}
 }
 
@@ -203,8 +210,8 @@ func TestAddOccupancySource(t *testing.T) {
 	}
 }
 
-// TestApplyOccupancyUnion exercises the skip, success, and degrade paths.
-func TestApplyOccupancyUnion(t *testing.T) {
+// TestApplyOccupancyOverlay exercises the skip, success, and degrade paths.
+func TestApplyOccupancyOverlay(t *testing.T) {
 	// Skip paths must not call the network.
 	stubOccupancy(t, func(context.Context) ([]Shelter, error) {
 		t.Fatal("fetchOccupancy must not be called when occupancy is skipped")
@@ -221,7 +228,7 @@ func TestApplyOccupancyUnion(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			feed := &shelterFeed{Source: "u", Shelters: []Shelter{{ShelterID: 1, Source: "fema"}}}
-			st := applyOccupancyUnion(context.Background(), tc.flags, feed, tc.spineSource)
+			st := applyOccupancyOverlay(context.Background(), tc.flags, feed, tc.spineSource)
 			if st.OK || st.Note == "" {
 				t.Errorf("%s: state = %+v, want skipped with note", tc.name, st)
 			}
@@ -231,15 +238,22 @@ func TestApplyOccupancyUnion(t *testing.T) {
 		})
 	}
 
-	// Success path: occupancy fills the spine population.
+	// Success path: occupancy fills the public spine row but withholds the
+	// operational-only row and never grows the feed.
 	pop := 17
 	stubOccupancy(t, func(context.Context) ([]Shelter, error) {
-		return []Shelter{{Name: "F", State: "IL", Source: "occupancy", TotalPopulation: &pop}}, nil
+		return []Shelter{
+			{Name: "F", State: "IL", Source: "occupancy", TotalPopulation: &pop},
+			{Name: "Hidden Op Site", State: "IL", Source: "occupancy", TotalPopulation: &pop},
+		}, nil
 	})
 	feed := &shelterFeed{Source: "https://feed", Shelters: []Shelter{{ShelterID: 1, Name: "F", State: "IL", Source: "fema"}}}
-	st := applyOccupancyUnion(context.Background(), &rootFlags{dataSource: "auto"}, feed, "live")
+	st := applyOccupancyOverlay(context.Background(), &rootFlags{dataSource: "auto"}, feed, "live")
 	if !st.OK {
 		t.Fatalf("success path: state = %+v, want OK", st)
+	}
+	if len(feed.Shelters) != 1 {
+		t.Fatalf("overlay added a non-public shelter: feed size = %d, want 1", len(feed.Shelters))
 	}
 	if feed.Shelters[0].TotalPopulation == nil || *feed.Shelters[0].TotalPopulation != 17 {
 		t.Errorf("occupancy did not fill spine population: %v", feed.Shelters[0].TotalPopulation)
@@ -247,13 +261,16 @@ func TestApplyOccupancyUnion(t *testing.T) {
 	if !strings.Contains(feed.Shelters[0].Source, "occupancy") {
 		t.Errorf("merged row source = %q, want it to record occupancy", feed.Shelters[0].Source)
 	}
+	if !strings.Contains(st.Note, "Withheld 1") {
+		t.Errorf("success note should report the withheld non-public shelter: %q", st.Note)
+	}
 
 	// Degrade path: a fetch error must not fail the command.
 	stubOccupancy(t, func(context.Context) ([]Shelter, error) {
 		return nil, context.DeadlineExceeded
 	})
 	feed2 := &shelterFeed{Source: "https://feed", Shelters: []Shelter{{ShelterID: 1, Source: "fema"}}}
-	st2 := applyOccupancyUnion(context.Background(), &rootFlags{dataSource: "auto"}, feed2, "live")
+	st2 := applyOccupancyOverlay(context.Background(), &rootFlags{dataSource: "auto"}, feed2, "live")
 	if st2.OK || !st2.Attempted || st2.Note == "" {
 		t.Errorf("degrade path: state = %+v, want attempted-but-not-OK with a note", st2)
 	}

@@ -47,7 +47,7 @@ func newNovelShelterCmd(flags *rootFlags) *cobra.Command {
 			if !ok {
 				return notFoundErr(fmt.Errorf("shelter not found: %d (a shelter_id is a positive FEMA id; Red Cross-only shelters are listed without one, see 'shelters-pp-cli shelters')", id))
 			}
-			note := joinNotes(feed.Enrich.humanNote(), feed.RedCross.humanNote(), feed.Occupancy.humanNote())
+			note := joinNotes(feed.Enrich.humanNote(), feed.RedCross.humanNote(), feed.Occupancy.humanNote(), feed.Hidden.humanNote())
 			return emitEnvelopeHuman(cmd, flags, feed.Source, s, func() string {
 				return renderShelterDetail(s, note)
 			})

@@ -24,6 +24,7 @@ type shelterFeed struct {
 	Enrich    enrichState
 	RedCross  enrichState
 	Occupancy enrichState
+	Hidden    enrichState
 }
 
 // loadShelterFeed returns the OpenShelters feed (the spine). When fixture is set
@@ -48,6 +49,7 @@ func loadShelterFeed(cmd *cobra.Command, flags *rootFlags, fixture string) (shel
 			Enrich:    enrichState{Note: "Enrichment (FEMA_NSS/0) is skipped in --fixture mode; the fixture is the OpenShelters spine only."},
 			RedCross:  enrichState{Note: "Red Cross union is skipped in --fixture mode; the fixture is the OpenShelters spine only."},
 			Occupancy: enrichState{Note: "Live occupancy (Open_Shelters) is skipped in --fixture mode; the fixture is the OpenShelters spine only."},
+			Hidden:    enrichState{Note: "Red Cross hidden-shelter filtering is skipped in --fixture mode; the fixture is the OpenShelters spine only."},
 		}, nil
 	}
 	c, err := flags.newClient()
@@ -85,11 +87,17 @@ func loadShelterFeed(cmd *cobra.Command, flags *rootFlags, fixture string) (shel
 	// coordinates), without an empty enrichment value clobbering a Red Cross one.
 	feed.Enrich = applyEnrichment(ctx, flags, feed.Shelters, prov.Source)
 	feed.RedCross = applyRedCrossUnion(ctx, flags, &feed, prov.Source)
-	// Fold in live occupancy LAST: the Open_Shelters layer is the only feed with a
+	// Overlay live occupancy LAST: the Open_Shelters layer is the only feed with a
 	// real population, so it fills the headcount/capacity onto FEMA and Red Cross
-	// rows alike (joined by name+state+ZIP, since it has no FEMA shelter_id) and
-	// appends any shelter present only there.
-	feed.Occupancy = applyOccupancyUnion(ctx, flags, &feed, prov.Source)
+	// rows alike (joined by name+state+ZIP, since it has no FEMA shelter_id). It is
+	// fill-only: Open_Shelters is the Red Cross operational roster and includes
+	// sites kept off the public map, so a row with no match in either public feed is
+	// withheld rather than added; the CLI shows only publicly listed shelters.
+	feed.Occupancy = applyOccupancyOverlay(ctx, flags, &feed, prov.Source)
+	// Suppress LAST: drop any shelter the Red Cross keeps off its public map
+	// (hide_from_public != 'No'), even one FEMA's public feed lists, so the CLI
+	// never surfaces a site the Red Cross has hidden. Conservative by design.
+	feed.Hidden = applyHiddenSuppression(ctx, flags, &feed, prov.Source)
 	return feed, nil
 }
 

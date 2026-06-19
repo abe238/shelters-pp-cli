@@ -6,12 +6,23 @@
 // Open_Shelters operational layer (same ArcGIS org as the EA view) does: it
 // reports total_population, the general/medical/other/pet breakdown, the
 // evacuation/post-impact capacity, and the driving incident. This file fetches
-// that layer best-effort and folds it into the union, joined on physical
-// identity (normalized name + state + compatible ZIP) because its SHELTER_ID is
-// an ARC-internal id, NOT FEMA's stable shelter_id. Like the Red Cross union it
-// NEVER fails a command: any fetch/parse error degrades to null occupancy plus
-// an honest note. Personal-contact columns (org POC name/phone/email, mailing
-// address) are deliberately never requested, so they never touch the wire.
+// that layer best-effort and overlays it onto the public union, matched on
+// physical identity (normalized name + state + compatible ZIP) because its
+// SHELTER_ID is an ARC-internal id, NOT FEMA's stable shelter_id.
+//
+// IMPORTANT (visibility): Open_Shelters is the Red Cross OPERATIONAL roster and
+// includes sites the Red Cross deliberately keeps off the public map (privacy,
+// transitional, non-walk-in), and it carries NO public/hide flag of its own. So
+// this is a FILL-ONLY overlay: it adds population/capacity onto a shelter that is
+// ALREADY in the public union (FEMA's public OpenShelters feed or the public Red
+// Cross EA view, which is itself filtered to hide_from_public='No'), and NEVER
+// introduces a new shelter. A row with no match in either public feed is withheld
+// so the CLI surfaces only publicly listed shelters.
+//
+// Like the other overlays it NEVER fails a command: any fetch/parse error
+// degrades to null occupancy plus an honest note. Personal-contact columns (org
+// POC name/phone/email, mailing address) are deliberately never requested, so
+// they never touch the wire.
 
 package cli
 
@@ -116,37 +127,41 @@ func cleanCity(s string) string {
 	return strings.TrimRight(strings.TrimSpace(s), ", ")
 }
 
-// unionOccupancy folds the Open_Shelters occupancy feed into the (already
-// FEMA-union-Red-Cross) feed. An occupancy row is the same physical shelter as a
-// unioned row when their alphanumeric-normalized names and states match AND their
-// 5-digit ZIPs are compatible (equal, or at least one missing) -- the same
-// identity test the Red Cross union uses, because Open_Shelters has no FEMA
-// shelter_id to join on. On a match the live occupancy (and any still-empty
-// descriptive gaps) are filled in via fillOccupancy and "+occupancy" is appended
-// to the row's provenance; unmatched occupancy rows are appended as "occupancy"
-// so a shelter reporting a headcount that is absent from both FEMA and Red Cross
-// is still surfaced. Like unionFeeds, the failure mode is over-listing a name
-// variant, never wrongly merging two distinct shelters. The base slice is copied
-// so the caller's slice is not mutated underneath it.
-func unionOccupancy(base, occ []Shelter) []Shelter {
-	out := make([]Shelter, len(base))
+// overlayOccupancy overlays the Open_Shelters occupancy feed onto the (already
+// FEMA-union-Red-Cross) PUBLIC feed as a FILL-ONLY pass. An occupancy row is the
+// same physical shelter as a unioned row when their alphanumeric-normalized names
+// and states match AND their 5-digit ZIPs are compatible (equal, or at least one
+// missing) -- the same identity test the Red Cross union uses, because
+// Open_Shelters has no FEMA shelter_id to join on. On a match the live occupancy
+// (and any still-empty descriptive gaps) are filled in via fillOccupancy and
+// "+occupancy" is appended to the row's provenance.
+//
+// A row with NO match is withheld, never appended. Open_Shelters is the Red Cross
+// operational roster and includes sites kept off the public map; with no public
+// corroboration (it is absent from both FEMA's public feed and the public Red
+// Cross EA view) and no visibility flag to consult, the CLI does not surface it.
+// The base slice is copied so the caller's slice is not mutated underneath it.
+// Returns the filled slice plus the counts of shelters filled and operational-only
+// rows withheld.
+func overlayOccupancy(base, occ []Shelter) (out []Shelter, filled, withheld int) {
+	out = make([]Shelter, len(base))
 	copy(out, base)
 	idx := map[string][]int{}
 	for i := range out {
 		k := normName(out[i].Name) + "|" + out[i].State
 		idx[k] = append(idx[k], i)
 	}
-	merged := map[int]bool{} // base indices already absorbed by an occupancy row
+	merged := map[int]bool{} // base indices already filled by an occupancy row
 	for _, r := range occ {
 		if normName(r.Name) == "" {
-			continue // no usable name -> cannot dedup or present; never key as "|STATE"
+			continue // no usable name -> cannot match; not counted as withheld
 		}
 		k := normName(r.Name) + "|" + r.State
 		matched := -1
 		for _, ci := range idx[k] {
 			// Only fill an un-consumed base row; a second occupancy row that keys the
-			// same must NOT be absorbed into the same base row (which would silently
-			// drop its headcount) -- it falls through and is appended instead.
+			// same does not get its own row (fill-only), it is withheld like any other
+			// row without a distinct public match.
 			if !merged[ci] && zipCompatible(out[ci], r) {
 				matched = ci
 				break
@@ -156,11 +171,12 @@ func unionOccupancy(base, occ []Shelter) []Shelter {
 			fillOccupancy(&out[matched], r)
 			out[matched].Source = addOccupancySource(out[matched].Source)
 			merged[matched] = true
+			filled++
 		} else {
-			out = append(out, r)
+			withheld++ // operational-only: not in any public feed, so not shown
 		}
 	}
-	return out
+	return out, filled, withheld
 }
 
 // fillOccupancy folds an Open_Shelters record onto a unioned shelter. The
@@ -253,13 +269,13 @@ func addOccupancySource(src string) string {
 	return src + "+occupancy"
 }
 
-// applyOccupancyUnion best-effort folds the Open_Shelters occupancy feed into the
-// union in place and reports what happened. Skipped (no network) under
-// --no-enrich or offline data sources; a fetch failure degrades to null
-// occupancy with an honest note, never an error. Run AFTER applyRedCrossUnion so
-// occupancy fills population onto FEMA and Red Cross rows alike and appends any
-// shelter present only in the Open_Shelters feed.
-func applyOccupancyUnion(ctx context.Context, flags *rootFlags, feed *shelterFeed, spineSource string) enrichState {
+// applyOccupancyOverlay best-effort overlays the Open_Shelters occupancy feed onto
+// the public union in place and reports what happened. Skipped (no network) under
+// --no-enrich or offline data sources; a fetch failure degrades to null occupancy
+// with an honest note, never an error. Run AFTER applyRedCrossUnion so occupancy
+// fills population onto FEMA and Red Cross rows alike; it never adds a shelter, so
+// operational-only Open_Shelters rows (kept off the public map) are withheld.
+func applyOccupancyOverlay(ctx context.Context, flags *rootFlags, feed *shelterFeed, spineSource string) enrichState {
 	if flags.noEnrich {
 		return enrichState{Note: "Live occupancy skipped (--no-enrich); population and capacity are omitted."}
 	}
@@ -270,18 +286,11 @@ func applyOccupancyUnion(ctx context.Context, flags *rootFlags, feed *shelterFee
 	if err != nil {
 		return enrichState{Attempted: true, Note: "Live occupancy (Red Cross Open_Shelters) unavailable; population and capacity are null where the other feeds did not report them. Spine data is unaffected."}
 	}
-	before := len(feed.Shelters)
-	feed.Shelters = unionOccupancy(feed.Shelters, occ)
-	added := len(feed.Shelters) - before
-	withPop := 0
-	for i := range feed.Shelters {
-		if feed.Shelters[i].TotalPopulation != nil {
-			withPop++
-		}
+	var filled, withheld int
+	feed.Shelters, filled, withheld = overlayOccupancy(feed.Shelters, occ)
+	note := fmt.Sprintf("Merged live occupancy onto %d publicly listed shelter(s).", filled)
+	if withheld > 0 {
+		note += fmt.Sprintf(" Withheld %d shelter(s) listed only in the Red Cross operational roster and not in either public feed; the CLI shows only publicly listed shelters.", withheld)
 	}
-	return enrichState{
-		Attempted: true,
-		OK:        true,
-		Note:      fmt.Sprintf("Merged live occupancy from %d Open_Shelters record(s); %d shelter(s) now report a population; %d open shelter(s) only in the Open_Shelters feed.", len(occ), withPop, added),
-	}
+	return enrichState{Attempted: true, OK: true, Note: note}
 }

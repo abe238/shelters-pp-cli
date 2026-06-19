@@ -33,6 +33,14 @@ const redCrossReferer = "https://www.redcross.org/"
 // hide_from_public='No' row is currently 'Open'.
 const redCrossWhere = "hide_from_public='No' AND active_site_status='Open'"
 
+// redCrossHiddenWhere selects the OPEN shelters the Red Cross is deliberately NOT
+// showing on its public map: every value of hide_from_public other than 'No' (the
+// public redcross.org map filters to exactly ='No'). These are sites kept off the
+// public map (privacy, transitional, not cleared for walk-ins). The CLI fetches
+// this set to SUPPRESS them, so it never surfaces a shelter the Red Cross has
+// hidden -- even when FEMA's public feed lists the same physical site.
+const redCrossHiddenWhere = "hide_from_public<>'No' AND active_site_status='Open'"
+
 // rcOutFields is the exact set of Red Cross columns parseRedCross reads. Like the
 // FEMA enrichment, requesting an explicit list (not "*") bounds the response and
 // keeps the layer's editor/creator and other metadata columns off the wire.
@@ -327,4 +335,85 @@ func applyRedCrossUnion(ctx context.Context, flags *rootFlags, feed *shelterFeed
 		OK:        true,
 		Note:      fmt.Sprintf("Unioned %d Red Cross record(s); %d open shelter(s) not in the FEMA feed.", len(rc), added),
 	}
+}
+
+// fetchRedCrossHidden fetches the Red-Cross-hidden shelter set (the suppression
+// denylist). Package var so tests stub it without the network. It reuses the Red
+// Cross parser; only the identity (name/state/ZIP) of each row is used downstream.
+var fetchRedCrossHidden = redCrossHiddenFetch
+
+func redCrossHiddenFetch(ctx context.Context) ([]Shelter, error) {
+	v := url.Values{}
+	v.Set("where", redCrossHiddenWhere)
+	v.Set("outFields", strings.Join(rcOutFields, ","))
+	v.Set("returnGeometry", "false")
+	v.Set("f", "json")
+	body, err := httpGet(ctx, redCrossBase+redCrossQuery+"?"+v.Encode(), redCrossReferer)
+	if err != nil {
+		return nil, err
+	}
+	return parseRedCross(body)
+}
+
+// suppressHidden removes every shelter that matches a Red-Cross-hidden identity
+// (normalized name + state, with a compatible ZIP), no matter which feed put it in
+// the list -- so a FEMA-public shelter the Red Cross keeps off its public map is
+// dropped too. The conservative stance: the Red Cross's own decision to hide a site
+// (privacy, transitional, not cleared for walk-ins) wins over another feed listing
+// it. Returns the kept shelters (new backing array) and the number removed.
+func suppressHidden(shelters, hidden []Shelter) ([]Shelter, int) {
+	if len(hidden) == 0 {
+		return shelters, 0
+	}
+	deny := map[string][]Shelter{}
+	for _, h := range hidden {
+		if normName(h.Name) == "" {
+			continue // no usable identity to match on
+		}
+		k := normName(h.Name) + "|" + h.State
+		deny[k] = append(deny[k], h)
+	}
+	var kept []Shelter
+	removed := 0
+	for _, s := range shelters {
+		hide := false
+		for _, h := range deny[normName(s.Name)+"|"+s.State] {
+			if zipCompatible(s, h) {
+				hide = true
+				break
+			}
+		}
+		if hide {
+			removed++
+			continue
+		}
+		kept = append(kept, s)
+	}
+	return kept, removed
+}
+
+// applyHiddenSuppression best-effort removes shelters the Red Cross keeps off its
+// public map and reports what happened. Skipped (no network) under --no-enrich or
+// offline data sources, like the other secondary fetches; a fetch failure degrades
+// to NO suppression with an honest note (we cannot identify the hidden sites, so
+// the feed is left unchanged), never an error. Run LAST, after every other feed, so
+// a hidden site is caught no matter which feed surfaced it.
+func applyHiddenSuppression(ctx context.Context, flags *rootFlags, feed *shelterFeed, spineSource string) enrichState {
+	if flags.noEnrich {
+		return enrichState{Note: "Red Cross hidden-shelter filtering skipped (--no-enrich); the raw FEMA spine may include a site the Red Cross keeps off its public map."}
+	}
+	if flags.dataSource == "local" || spineSource == "local" {
+		return enrichState{Note: "Red Cross hidden-shelter filtering skipped (offline / --data-source local)."}
+	}
+	hidden, err := fetchRedCrossHidden(ctx)
+	if err != nil {
+		return enrichState{Attempted: true, Note: "Could not fetch the Red Cross hidden-shelter list; no shelters were suppressed, so a site the Red Cross keeps off its public map may appear. Spine data is unaffected."}
+	}
+	var removed int
+	feed.Shelters, removed = suppressHidden(feed.Shelters, hidden)
+	note := fmt.Sprintf("Checked %d Red Cross hidden-shelter record(s).", len(hidden))
+	if removed > 0 {
+		note += fmt.Sprintf(" Suppressed %d shelter(s) the Red Cross keeps off its public map (not shown even though another feed listed them).", removed)
+	}
+	return enrichState{Attempted: true, OK: true, Note: note}
 }

@@ -74,6 +74,7 @@ type shelterListData struct {
 	Enrichment enrichState `json:"enrichment"`
 	RedCross   enrichState `json:"red_cross"`
 	Occupancy  enrichState `json:"occupancy"`
+	Hidden     enrichState `json:"hidden_filter"`
 }
 
 // pp:data-source auto
@@ -108,9 +109,9 @@ func newSheltersPromotedCmd(flags *rootFlags) *cobra.Command {
 			if flagLimit > 0 && len(shelters) > flagLimit {
 				shelters = shelters[:flagLimit]
 			}
-			data := shelterListData{Count: len(shelters), Shelters: shelters, Enrichment: feed.Enrich, RedCross: feed.RedCross, Occupancy: feed.Occupancy}
+			data := shelterListData{Count: len(shelters), Shelters: shelters, Enrichment: feed.Enrich, RedCross: feed.RedCross, Occupancy: feed.Occupancy, Hidden: feed.Hidden}
 			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
-				return renderShelterTable(shelters, feed.Enrich, feed.RedCross, feed.Occupancy)
+				return renderShelterTable(shelters, feed.Enrich, feed.RedCross, feed.Occupancy, feed.Hidden)
 			})
 		},
 	}
@@ -128,12 +129,12 @@ func newSheltersPromotedCmd(flags *rootFlags) *cobra.Command {
 }
 
 // renderShelterTable renders the human listing.
-func renderShelterTable(shelters []Shelter, enrich, redCross, occupancy enrichState) string {
+func renderShelterTable(shelters []Shelter, enrich, redCross, occupancy, hidden enrichState) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Open shelters: %d\n", len(shelters))
 	if len(shelters) == 0 {
 		fmt.Fprintln(&b, "  (none reported right now; this is normal when no disaster is active)")
-		appendFeedNotes(&b, enrich, redCross, occupancy)
+		appendFeedNotes(&b, enrich, redCross, occupancy, hidden)
 		return b.String()
 	}
 	for _, s := range shelters {
@@ -152,7 +153,7 @@ func renderShelterTable(shelters []Shelter, enrich, redCross, occupancy enrichSt
 			fmt.Fprintf(&b, "    incident %s\n", s.IncidentName)
 		}
 	}
-	appendFeedNotes(&b, enrich, redCross, occupancy)
+	appendFeedNotes(&b, enrich, redCross, occupancy, hidden)
 	return b.String()
 }
 

@@ -252,3 +252,107 @@ func TestApplyRedCrossUnion(t *testing.T) {
 		t.Error("degrade: spine was modified on RC failure")
 	}
 }
+
+// stubRedCrossHidden swaps fetchRedCrossHidden for a deterministic function.
+func stubRedCrossHidden(t *testing.T, fn func(context.Context) ([]Shelter, error)) {
+	t.Helper()
+	prev := fetchRedCrossHidden
+	t.Cleanup(func() { fetchRedCrossHidden = prev })
+	fetchRedCrossHidden = fn
+}
+
+// TestSuppressHidden locks the privacy contract: a shelter matching a Red-Cross-
+// hidden identity (name+state, compatible ZIP) is dropped no matter its source --
+// including a FEMA-public shelter the Red Cross keeps off its public map -- while a
+// FEMA shelter absent from the hidden set is kept.
+func TestSuppressHidden(t *testing.T) {
+	shelters := []Shelter{
+		{ShelterID: 1, Name: "Lincoln Community Center", State: "IN", Zip: "46322", Source: "fema+occupancy"}, // FEMA-public but RC-hidden
+		{ShelterID: 2, Name: "Family Life Community Church", State: "WA", Zip: "98001", Source: "fema"},       // FEMA-only, not hidden
+		{ShelterID: 0, Name: "Open Public RC Site", State: "TX", Zip: "75001", Source: "redcross"},
+	}
+	hidden := []Shelter{
+		{Name: "LINCOLN COMMUNITY CENTER", State: "IN", Zip: "46322", Source: "redcross"}, // case/format differs; must still match
+		{Name: "Some Other Hidden Site", State: "FL", Zip: "33101", Source: "redcross"},   // not in the feed; harmless
+	}
+	kept, removed := suppressHidden(shelters, hidden)
+	if removed != 1 {
+		t.Fatalf("removed = %d, want 1 (only Lincoln matches a hidden identity)", removed)
+	}
+	names := map[string]bool{}
+	for _, s := range kept {
+		names[s.Name] = true
+	}
+	if names["Lincoln Community Center"] {
+		t.Error("a Red-Cross-hidden shelter must be suppressed even though FEMA lists it")
+	}
+	if !names["Family Life Community Church"] || !names["Open Public RC Site"] {
+		t.Error("a non-hidden shelter must be kept")
+	}
+
+	// An empty hidden set suppresses nothing and returns the input unchanged.
+	if k, r := suppressHidden(shelters, nil); r != 0 || len(k) != len(shelters) {
+		t.Errorf("empty hidden set: removed=%d kept=%d, want 0 / %d", r, len(k), len(shelters))
+	}
+}
+
+// TestApplyHiddenSuppression exercises the skip, success, and degrade paths.
+func TestApplyHiddenSuppression(t *testing.T) {
+	// Skip paths must not call the network.
+	stubRedCrossHidden(t, func(context.Context) ([]Shelter, error) {
+		t.Fatal("fetchRedCrossHidden must not be called when suppression is skipped")
+		return nil, nil
+	})
+	for _, tc := range []struct {
+		name        string
+		flags       *rootFlags
+		spineSource string
+	}{
+		{"no-enrich", &rootFlags{noEnrich: true, dataSource: "auto"}, "live"},
+		{"data-source-local", &rootFlags{dataSource: "local"}, "live"},
+		{"spine-local", &rootFlags{dataSource: "auto"}, "local"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			feed := &shelterFeed{Source: "u", Shelters: []Shelter{{ShelterID: 1, Name: "X", State: "IN", Source: "fema"}}}
+			st := applyHiddenSuppression(context.Background(), tc.flags, feed, tc.spineSource)
+			if st.OK || st.Note == "" {
+				t.Errorf("%s: state = %+v, want skipped with note", tc.name, st)
+			}
+			if len(feed.Shelters) != 1 {
+				t.Errorf("%s: shelters changed despite skip", tc.name)
+			}
+		})
+	}
+
+	// Success path: a FEMA-public-but-RC-hidden shelter is removed.
+	stubRedCrossHidden(t, func(context.Context) ([]Shelter, error) {
+		return []Shelter{{Name: "Lincoln Community Center", State: "IN", Zip: "46322", Source: "redcross"}}, nil
+	})
+	feed := &shelterFeed{Source: "u", Shelters: []Shelter{
+		{ShelterID: 1, Name: "Lincoln Community Center", State: "IN", Zip: "46322", Source: "fema+occupancy"},
+		{ShelterID: 2, Name: "Family Life Community Church", State: "WA", Zip: "98001", Source: "fema"},
+	}}
+	st := applyHiddenSuppression(context.Background(), &rootFlags{dataSource: "auto"}, feed, "live")
+	if !st.OK {
+		t.Fatalf("success path: state = %+v, want OK", st)
+	}
+	if len(feed.Shelters) != 1 || feed.Shelters[0].Name != "Family Life Community Church" {
+		t.Fatalf("hidden shelter not suppressed: %d shelters remain", len(feed.Shelters))
+	}
+	if !strings.Contains(st.Note, "Suppressed 1") {
+		t.Errorf("note should report the suppression: %q", st.Note)
+	}
+
+	// Degrade path: a fetch error must not fail the command and must not suppress.
+	stubRedCrossHidden(t, func(context.Context) ([]Shelter, error) {
+		return nil, errors.New("403 forbidden")
+	})
+	feed2 := &shelterFeed{Source: "u", Shelters: []Shelter{{ShelterID: 1, Name: "Lincoln Community Center", State: "IN", Zip: "46322", Source: "fema"}}}
+	st2 := applyHiddenSuppression(context.Background(), &rootFlags{dataSource: "auto"}, feed2, "live")
+	if st2.OK || !st2.Attempted || st2.Note == "" {
+		t.Errorf("degrade path: state = %+v, want attempted-but-not-OK with a note", st2)
+	}
+	if len(feed2.Shelters) != 1 {
+		t.Errorf("degrade path: shelters changed on fetch failure: %d", len(feed2.Shelters))
+	}
+}

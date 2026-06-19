@@ -29,6 +29,7 @@ type briefData struct {
 	Enrichment         enrichState    `json:"enrichment"`
 	RedCross           enrichState    `json:"red_cross"`
 	Occupancy          enrichState    `json:"occupancy"`
+	Hidden             enrichState    `json:"hidden_filter"`
 	Summary            string         `json:"summary"`
 }
 
@@ -59,6 +60,7 @@ func newNovelBriefCmd(flags *rootFlags) *cobra.Command {
 			data.Enrichment = feed.Enrich
 			data.RedCross = feed.RedCross
 			data.Occupancy = feed.Occupancy
+			data.Hidden = feed.Hidden
 			// --markdown is a human format: honor --quiet (suppress) and let
 			// --json win (machine consumers get the envelope, not markdown).
 			if flagMarkdown {
@@ -72,7 +74,7 @@ func newNovelBriefCmd(flags *rootFlags) *cobra.Command {
 			}
 			return emitEnvelopeHuman(cmd, flags, feed.Source, data, func() string {
 				out := data.Summary + "\n"
-				for _, note := range []string{data.Enrichment.humanNote(), data.RedCross.humanNote(), data.Occupancy.humanNote()} {
+				for _, note := range []string{data.Enrichment.humanNote(), data.RedCross.humanNote(), data.Occupancy.humanNote(), data.Hidden.humanNote()} {
 					if note != "" {
 						out += note + "\n"
 					}
@@ -166,7 +168,7 @@ func renderBriefMarkdown(d briefData) string {
 	fmt.Fprintf(&b, "- Reported FULL: %d\n", d.ReportedFullCount)
 	fmt.Fprintln(&b)
 
-	for _, note := range []string{d.Enrichment.humanNote(), d.RedCross.humanNote(), d.Occupancy.humanNote()} {
+	for _, note := range []string{d.Enrichment.humanNote(), d.RedCross.humanNote(), d.Occupancy.humanNote(), d.Hidden.humanNote()} {
 		if note != "" {
 			fmt.Fprintf(&b, "_%s_\n\n", note)
 		}
